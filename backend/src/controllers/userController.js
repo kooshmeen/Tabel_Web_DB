@@ -1,4 +1,4 @@
-const User = require('../models/user');
+const User = require('../models/User');
 
 // Controller pentru operațiuni cu utilizatori
 class UserController {
