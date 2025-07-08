@@ -34,7 +34,7 @@ class User {
 
     // Get user by email
     static async getUserByEmail(email) {
-        const query = `SELECT id, name, email, password FROM users WHERE email = $1`;
+        const query = `SELECT id, name, email, password, role FROM users WHERE email = $1`;
         const values = [email];
         try {
             const result = await pool.query(query, values);
@@ -132,6 +132,23 @@ class User {
         } catch (error) {
             console.error('Error verifying password:', error);
             throw new Error('Error verifying password');
+        }
+    }
+
+    // Get all tables in the database
+    static async getAllTables() {
+        const query = `
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+        `;
+        try {
+            const result = await pool.query(query);
+            return result.rows.map(row => row.table_name);
+        } catch (error) {
+            console.error('Error fetching tables:', error);
+            throw new Error('Error fetching tables');
         }
     }
 }

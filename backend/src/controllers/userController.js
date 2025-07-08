@@ -2,6 +2,23 @@ const User = require('../models/User');
 
 // Controller pentru operațiuni cu utilizatori
 class UserController {
+
+    // GET /api/users/tables - List all tables in the db
+    static async getAllTables(req, res) {
+        try {
+            const tables = await User.getAllTables();
+            res.json({
+                success: true,
+                data: tables,
+                count: tables.length
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
     
     // GET /api/users - Listează toți utilizatorii
     static async getAllUsers(req, res) {

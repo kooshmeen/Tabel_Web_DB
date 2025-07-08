@@ -28,9 +28,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 succesDiv.style.display = 'block';
                 succesDiv.textContent = 'Login successful! Redirecting...';
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 2000);
+                const userRole = result.data.role;
+                
+                // Redirect based on user role
+                if (userRole === 'admin') {
+                    setTimeout(() => {
+                        window.location.href = 'dashboard-admin.html';
+                    }, 1000); // Redirect to admin dashboard
+                } else if (userRole === 'user') {
+                    setTimeout(() => {
+                        window.location.href = 'dashboard-user.html';
+                    }, 1000); // Redirect to user dashboard
+                }
             } else {
                 errorDiv.style.display = 'block';
                 errorDiv.textContent = result.message || 'Login failed';
@@ -40,5 +49,15 @@ document.addEventListener('DOMContentLoaded', function() {
             errorDiv.style.display = 'block';
             errorDiv.textContent = 'An error occurred during login';
         }
+
+        // Clear form fields
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-password').value = '';
+
+        // Clear success and error messages
+        setTimeout(() => {
+            succesDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+        }, 1000);
     });
 })
