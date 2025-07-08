@@ -34,4 +34,7 @@ router.post('/register', UserController.createUser);
 // POST /api/users/login - Login
 router.post('/login', authController.login);
 
+// GET /api/users/tables/:tableName - Get data from specific table (admin only)
+router.get('/tables/:tableName', authMiddleware, UserController.getTableData);
+
 module.exports = router;

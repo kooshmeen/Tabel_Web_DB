@@ -1,0 +1,58 @@
+/* Table Modal Styles */
+.table-modal .modal-content {
+    width: 95%;
+    max-width: 1200px;
+    max-height: 90vh;
+}
+
+.table-info {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.table-info p {
+    margin: 0.25rem 0;
+}
+
+.table-container {
+    max-height: 400px;
+    overflow: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+}
+
+.data-table th small {
+    font-weight: normal;
+    color: #6b7280;
+    font-size: 0.75rem;
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.page-info {
+    font-weight: 500;
+    color: #374151;
+}
+
+.error {
+    color: #dc2626;
+    text-align: center;
+    padding: 2rem;
+}
+
+.logout-container {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}

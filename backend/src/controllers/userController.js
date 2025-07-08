@@ -19,6 +19,29 @@ class UserController {
             });
         }
     }
+
+    // GET /api/users/tables/:tableName - Get data for a specific table
+    static async getTableData(req, res) {
+        try {
+            const { tableName } = req.params;
+            const { page = 1, limit = 50 } = req.query;
+            
+            const tableData = await User.getTableData(tableName, page, limit);
+            
+            res.json({
+                success: true,
+                data: tableData,
+                message: 'Table data retrieved successfully'
+            });
+            
+        } catch (error) {
+            console.error('❌ Error in getTableData controller:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
     
     // GET /api/users - Listează toți utilizatorii
     static async getAllUsers(req, res) {

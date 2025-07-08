@@ -32,6 +32,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 console.log('User role:', userRole);
 
+                // Store user and token in localStorage
+                localStorage.setItem('user', JSON.stringify(result.data.user));
+                localStorage.setItem('token', result.data.token);
+
                 // Redirect based on user role
                 if (userRole === 'admin') {
                     setTimeout(() => {

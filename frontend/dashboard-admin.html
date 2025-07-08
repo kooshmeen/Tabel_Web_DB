@@ -12,6 +12,66 @@
             <h1 class="title">Admin dashboard</h1>
         </header>
 
+        <!-- Logout button -->
+        <div class="logout-container">
+            <button id="logout-btn" class="btn btn-primary">Logout</button>
+        </div>
+
+        <nav class="dashboard-nav">
+            <ul>
+                <li><a href="#users" class="nav-link active" data-section="users">User Management</a></li>
+                <li><a href="#tables" class="nav-link" data-section="tables">All Tables</a></li>
+                <li><a href="#settings" class="nav-link" data-section="settings">Settings</a></li>
+                <li><a href="#logs" class="nav-link" data-section="logs">Activity Logs</a></li>
+            </ul>
+        </nav>
+
+        <!-- Tables Section -->
+        <section id="tables-section" class="dashboard-section">
+            <div class="section-header">
+                <h2>Database Tables</h2>
+                <button id="refresh-tables-btn" class="btn btn-secondary">Refresh</button>
+            </div>
+            
+            <div class="table-container">
+                <table id="tables-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Table Name</th>
+                            <th>Schema</th>
+                            <th>Row Count</th>
+                            <th>Column Count</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tables-tbody">
+                        <!-- Tables will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="tables-loading" class="loading hidden">Loading tables...</div>
+            <div id="tables-empty" class="empty-state hidden">No tables found</div>
+        </section>
+
+        <!-- Table Data Modal -->
+        <div id="table-data-modal" class="modal hidden">
+            <div class="modal-content table-modal">
+                <div class="modal-header">
+                    <h3 id="table-modal-title">Table Data</h3>
+                    <button id="close-table-modal" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="table-data-container">
+                        <!-- Table data will be loaded here -->
+                    </div>
+                    <div id="table-pagination" class="pagination hidden">
+                        <!-- Pagination controls -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
     <script src="js/adminDash.js"></script>
 </body>
 </html>

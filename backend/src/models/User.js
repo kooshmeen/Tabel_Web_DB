@@ -137,18 +137,120 @@ class User {
 
     // Get all tables in the database
     static async getAllTables() {
-        const query = `
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-            ORDER BY table_name;
-        `;
         try {
-            const result = await pool.query(query);
-            return result.rows.map(row => row.table_name);
+            console.log('📊 Fetching all database tables from model...');
+            
+            // Query to get all tables in the public schema
+            const tablesQuery = `
+                SELECT table_name, table_schema
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name;
+            `;
+            
+            const tablesResult = await pool.query(tablesQuery);
+            const tables = tablesResult.rows;
+            
+            console.log('Found tables:', tables);
+            
+            // For each table, get some basic info (row count, column count)
+            const tableDetails = await Promise.all(
+                tables.map(async (table) => {
+                    try {
+                        // Get row count
+                        const countQuery = `SELECT COUNT(*) as row_count FROM ${table.table_name}`;
+                        const countResult = await pool.query(countQuery);
+                        const rowCount = parseInt(countResult.rows[0].row_count);
+                        
+                        // Get column count
+                        const columnsQuery = `
+                            SELECT COUNT(*) as column_count
+                            FROM information_schema.columns 
+                            WHERE table_name = $1 AND table_schema = 'public'
+                        `;
+                        const columnsResult = await pool.query(columnsQuery, [table.table_name]);
+                        const columnCount = parseInt(columnsResult.rows[0].column_count);
+                        
+                        return {
+                            name: table.table_name,
+                            schema: table.table_schema,
+                            rowCount,
+                            columnCount
+                        };
+                    } catch (error) {
+                        console.error(`Error getting details for table ${table.table_name}:`, error);
+                        return {
+                            name: table.table_name,
+                            schema: table.table_schema,
+                            rowCount: 0,
+                            columnCount: 0,
+                            error: error.message
+                        };
+                    }
+                })
+            );
+            
+            return tableDetails;
+            
         } catch (error) {
-            console.error('Error fetching tables:', error);
-            throw new Error('Error fetching tables');
+            console.error('Error in getAllTables model method:', error);
+            throw new Error('Error fetching database tables');
+        }
+    }
+
+    // Get data for a specific table with pagination
+    static async getTableData(tableName, page = 1, limit = 50) {
+        try {
+            console.log(`📊 Fetching data for table: ${tableName}`);
+            
+            // Validate table name to prevent SQL injection
+            const validTablesQuery = `
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_name = $1
+            `;
+            const validTableResult = await pool.query(validTablesQuery, [tableName]);
+            
+            if (validTableResult.rows.length === 0) {
+                throw new Error('Table not found');
+            }
+            
+            // Get table structure (columns)
+            const columnsQuery = `
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns 
+                WHERE table_name = $1 AND table_schema = 'public'
+                ORDER BY ordinal_position
+            `;
+            const columnsResult = await pool.query(columnsQuery, [tableName]);
+            const columns = columnsResult.rows;
+            
+            // Get total count
+            const countQuery = `SELECT COUNT(*) as total FROM ${tableName}`;
+            const countResult = await pool.query(countQuery);
+            const total = parseInt(countResult.rows[0].total);
+            
+            // Get paginated data
+            const offset = (page - 1) * limit;
+            const dataQuery = `SELECT * FROM ${tableName} ORDER BY 1 LIMIT $1 OFFSET $2`;
+            const dataResult = await pool.query(dataQuery, [limit, offset]);
+            const rows = dataResult.rows;
+            
+            return {
+                tableName,
+                columns,
+                rows,
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            };
+            
+        } catch (error) {
+            console.error('Error in getTableData model method:', error);
+            throw new Error('Error fetching table data: ' + error.message);
         }
     }
 }
