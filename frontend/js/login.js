@@ -28,8 +28,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 succesDiv.style.display = 'block';
                 succesDiv.textContent = 'Login successful! Redirecting...';
-                const userRole = result.data.role;
+                const userRole = result.data.user.role;
                 
+                console.log('User role:', userRole);
+
                 // Redirect based on user role
                 if (userRole === 'admin') {
                     setTimeout(() => {

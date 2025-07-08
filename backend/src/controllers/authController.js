@@ -38,9 +38,7 @@ class AuthController {
             res.json({
                 success: true,
                 data: {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
+                    user: user,
                     token: token // Include the token in the response
                 },
                 message: 'Login successful'
@@ -86,3 +84,5 @@ class AuthController {
         }
     }
 }
+
+module.exports = AuthController;
