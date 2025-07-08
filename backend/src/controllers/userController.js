@@ -48,32 +48,70 @@ class UserController {
     // POST /api/users - Creează user nou
     static async createUser(req, res) {
         try {
-            const { name, email, password } = req.body;
+            console.log('=== Registration Request ===');
+            console.log('Request body:', req.body);
             
-            // Validare de bază
+            const { name, email, password, userType, adminPassword } = req.body;
+            
+            // Basic validation
             if (!name || !email || !password) {
+                console.log('❌ Basic validation failed');
                 return res.status(400).json({
                     success: false,
                     error: 'Name, email and password are required'
                 });
             }
             
-            // Verifică dacă email-ul există deja
+            // Admin password validation
+            if (userType === 'admin') {
+                console.log('🔐 Admin registration detected');
+                if (!adminPassword) {
+                    console.log('❌ Admin password missing');
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Admin password is required for admin accounts'
+                    });
+                }
+                
+                const ADMIN_SECRET = process.env.ADMIN_SECRET;
+                if (adminPassword !== ADMIN_SECRET) {
+                    console.log('❌ Admin password incorrect');
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Invalid admin password'
+                    });
+                }
+                console.log('✅ Admin password correct');
+            }
+            
+            // Check if email exists
+            console.log('📧 Checking email existence...');
             const emailExists = await User.emailExists(email);
             if (emailExists) {
+                console.log('❌ Email already exists');
                 return res.status(400).json({
                     success: false,
                     error: 'Email already exists'
                 });
             }
             
-            const user = await User.createUser({ name, email, password });
+            // Create user
+            console.log('👤 Creating user...');
+            const role = userType === 'admin' ? 'admin' : 'user';
+            console.log('Role will be:', role);
+            
+            const user = await User.createUser({ name, email, password, role });
+            
+            console.log('✅ User created successfully:', user);
             res.status(201).json({
                 success: true,
                 data: user,
                 message: 'User created successfully'
             });
+            
         } catch (error) {
+            console.error('💥 Registration Error:', error.message);
+            console.error('Stack:', error.stack);
             res.status(500).json({
                 success: false,
                 error: error.message

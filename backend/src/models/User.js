@@ -4,12 +4,12 @@ const bcrypt = require('bcrypt');
 class User {
     // Create a new user
     static async createUser(userData) {
-        const { name, email, password } = userData;
+        const { name, email, password, role = 'user' } = userData;
         const hashedPassword = await bcrypt.hash(password, 10);
-        const query = `INSERT INTO users (name, email, password) 
-                       VALUES ($1, $2, $3) 
-                       RETURNING id, name, email`;
-        const values = [name, email, hashedPassword];
+        const query = `INSERT INTO users (name, email, password, role) 
+                       VALUES ($1, $2, $3, $4) 
+                       RETURNING id, name, email, role`;
+        const values = [name, email, hashedPassword, role];
         try {
             const result = await pool.query(query, values);
             return result.rows[0];
@@ -110,7 +110,7 @@ class User {
         if (!isPasswordValid) {
             throw new Error('Invalid password');
         }
-        return { id: user.id, name: user.name, email: user.email };
+        return { id: user.id, name: user.name, email: user.email, role: user.role };
     }
 
     // Check if email exists
@@ -123,6 +123,15 @@ class User {
         } catch (error) {
             console.error('Error checking email existence:', error);
             throw new Error('Error checking email existence');
+        }
+    }
+
+    static async verifyPassword(password, hashedPassword) {
+        try {
+            return await bcrypt.compare(password, hashedPassword);
+        } catch (error) {
+            console.error('Error verifying password:', error);
+            throw new Error('Error verifying password');
         }
     }
 }

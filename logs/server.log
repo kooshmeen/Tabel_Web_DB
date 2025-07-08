@@ -7,9 +7,64 @@
 [33m[nodemon] watching path(s): *.*[39m
 [33m[nodemon] watching extensions: js,mjs,cjs,json[39m
 [32m[nodemon] starting `node src/app.js`[39m
-[dotenv@17.0.1] injecting env (6) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
 [dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
 🚀 Server running on http://localhost:3000
 📊 Health check: http://localhost:3000/health
+📨 POST /api/users/register
+Request body: {
+  name: 'acosmin',
+  email: 'acosmin@t.com',
+  password: 'test',
+  userType: 'admin',
+  adminPassword: 'asdkanlsd'
+}
+=== Registration Request ===
+Request body: {
+  name: 'acosmin',
+  email: 'acosmin@t.com',
+  password: 'test',
+  userType: 'admin',
+  adminPassword: 'asdkanlsd'
+}
+🔐 Admin registration detected
+❌ Admin password incorrect
+📨 POST /api/users/register
+Request body: {
+  name: 'acosmin',
+  email: 'acosmin@t.com',
+  password: 'test',
+  userType: 'admin',
+  adminPassword: 'adminpwd'
+}
+=== Registration Request ===
+Request body: {
+  name: 'acosmin',
+  email: 'acosmin@t.com',
+  password: 'test',
+  userType: 'admin',
+  adminPassword: 'adminpwd'
+}
+🔐 Admin registration detected
+✅ Admin password correct
+📧 Checking email existence...
 ✅ Conectat la PostgreSQL
-✅ Conectat la PostgreSQL
+👤 Creating user...
+Role will be: admin
+✅ User created successfully: { id: 5, name: 'acosmin', email: 'acosmin@t.com', role: 'admin' }
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+📨 POST /api/users/login
+Request body: { email: 'cosmin@t.com', password: 'test' }
+📨 POST /api/users/login
+Request body: { email: 'cosmin@t.com', password: 'test' }
