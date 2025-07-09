@@ -37,4 +37,10 @@ router.post('/login', authController.login);
 // GET /api/users/tables/:tableName - Get data from specific table (admin only)
 router.get('/tables/:tableName', authMiddleware, UserController.getTableData);
 
+// PATCH /api/users/tables/:tableName/rows/:rowId - Update specific row
+router.patch('/tables/:tableName/rows/:rowId', authMiddleware, UserController.updateTableRow);
+
+// DELETE /api/users/tables/:tableName/rows/:rowId - Delete specific row
+router.delete('/tables/:tableName/rows/:rowId', authMiddleware, UserController.deleteTableRow);
+
 module.exports = router;

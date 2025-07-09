@@ -1,7 +1,3 @@
-// js/admin-dashboard.js
-
-// js/admin-dashboard.js
-
 let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -42,6 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
 // Rest of your functions...
 function initializeDashboard() {
     setupNavigation();
+    // By default, show the tables section
+    showSection('tables');
+    loadDatabaseTables();
 }
 
 function setupNavigation() {
@@ -199,7 +198,6 @@ async function loadTableData(tableName) {
     
     try {
         const token = localStorage.getItem('token');
-        console.log('🔑 Token exists:', !!token);
         
         if (!token) {
             console.error('❌ No token found in localStorage');
@@ -213,16 +211,10 @@ async function loadTableData(tableName) {
             'Content-Type': 'application/json'
         };
         
-        console.log('📡 Request headers:', headers);
-        console.log(`📡 Making request to /api/users/tables/${tableName}`);
-        
         const response = await fetch(`/api/users/tables/${tableName}`, {
             method: 'GET',
             headers: headers
         });
-        
-        console.log('📡 Response status:', response.status);
-        console.log('📡 Response ok:', response.ok);
         
         if (!response.ok) {
             const errorText = await response.text();
@@ -239,49 +231,74 @@ async function loadTableData(tableName) {
             console.log(`✅ Displaying data for table ${tableName}:`, result.data.rows.length, 'rows');
             
             const tableData = result.data;
-
-            // Extract table data without 
-
             const { columns, rows } = tableData;
             
-            // Create table headers
+            // Create table headers with edit indicators
             if (tableHead && columns && columns.length > 0) {
                 const headerRow = document.createElement('tr');
                 columns.forEach(column => {
                     const th = document.createElement('th');
                     th.textContent = column.column_name;
+                    
+                    // Add visual indicators for column permissions
+                    if (column.permissions && !column.permissions.editable) {
+                        th.classList.add('readonly-column');
+                        th.title = column.permissions.reason || 'This column is not editable';
+                    } else if (column.permissions && column.permissions.editable) {
+                        th.classList.add('editable-column');
+                        th.title = 'Click cells to edit';
+                    }
+                    
                     headerRow.appendChild(th);
                 });
+                
+                // Add actions column
+                const actionsHeader = document.createElement('th');
+                actionsHeader.textContent = 'Actions';
+                headerRow.appendChild(actionsHeader);
+                
                 tableHead.appendChild(headerRow);
             }
             
-            // Create table rows
+            // Create table rows with edit capabilities
             rows.forEach((row, index) => {
                 const tr = document.createElement('tr');
                 
-                // If we have column info, use it for consistent ordering
-                if (columns && columns.length > 0) {
-                    columns.forEach(column => {
-                        const td = document.createElement('td');
-                        const value = row[column.column_name];
-                        td.textContent = value !== null && value !== undefined ? value : '';
-                        tr.appendChild(td);
-                    });
-                } else {
-                    // Fallback: use all object values
-                    Object.values(row).forEach(value => {
-                        const td = document.createElement('td');
-                        td.textContent = value !== null && value !== undefined ? value : '';
-                        tr.appendChild(td);
-                    });
-                }
+                columns.forEach(column => {
+                    const td = document.createElement('td');
+                    const value = row[column.column_name];
+                    
+                    if (column.permissions && column.permissions.editable) {
+                        // Make editable cells
+                        td.classList.add('editable-cell');
+                        td.setAttribute('data-column', column.column_name);
+                        td.setAttribute('data-table', tableName);
+                        td.setAttribute('data-row-id', row.id || index);
+                        td.setAttribute('data-original-value', value || '');
+                        td.addEventListener('click', handleCellEdit);
+                        td.title = 'Click to edit';
+                    } else {
+                        // Read-only cells
+                        td.classList.add('readonly-cell');
+                        td.title = column.permissions?.reason || 'Read-only';
+                    }
+                    
+                    td.textContent = value !== null && value !== undefined ? value : '';
+                    tr.appendChild(td);
+                });
+                
+                // Add actions column
+                const actionsCell = document.createElement('td');
+                actionsCell.innerHTML = `
+                    <button class="btn btn-sm btn-danger" onclick="deleteRow('${tableName}', ${row.id || index})">Delete</button>
+                `;
+                tr.appendChild(actionsCell);
                 
                 tableBody.appendChild(tr);
             });
             
         } else {
             console.log(`❌ No data found for table ${tableName}`);
-            console.log('Result structure:', result);
             document.getElementById('table-data-empty')?.classList.remove('hidden');
         }
         
@@ -306,3 +323,138 @@ document.addEventListener('click', function(e) {
         showSection('table-data');
     }
 });
+
+// Function to handle cell editing
+function handleCellEdit(event) {
+    const cell = event.target;
+    const currentValue = cell.textContent;
+    const column = cell.getAttribute('data-column');
+    const tableName = cell.getAttribute('data-table');
+    const rowId = cell.getAttribute('data-row-id');
+    const originalValue = cell.getAttribute('data-original-value');
+    
+    // Don't edit if already editing
+    if (cell.querySelector('input')) {
+        return;
+    }
+    
+    // Create input field
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentValue;
+    input.className = 'cell-editor';
+    
+    // Replace cell content with input
+    cell.innerHTML = '';
+    cell.appendChild(input);
+    input.focus();
+    input.select();
+    
+    // Handle save on Enter or blur
+    const saveEdit = async () => {
+        const newValue = input.value;
+        
+        // If value hasn't changed, just restore
+        if (newValue === originalValue) {
+            cell.textContent = currentValue;
+            return;
+        }
+        
+        try {
+            // Show loading state
+            cell.innerHTML = '<span class="saving">Saving...</span>';
+            
+            // Update database
+            await updateCellValue(tableName, rowId, column, newValue);
+            
+            // Update UI
+            cell.textContent = newValue;
+            cell.setAttribute('data-original-value', newValue);
+            cell.classList.add('cell-updated');
+            
+            // Remove updated class after animation
+            setTimeout(() => {
+                cell.classList.remove('cell-updated');
+            }, 2000);
+            
+        } catch (error) {
+            console.error('❌ Error updating cell:', error);
+            cell.textContent = currentValue; // Restore original
+            alert('Error updating cell: ' + error.message);
+        }
+    };
+    
+    const cancelEdit = () => {
+        cell.textContent = currentValue;
+    };
+    
+    // Event listeners
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            saveEdit();
+        } else if (e.key === 'Escape') {
+            cancelEdit();
+        }
+    });
+}
+
+// Function to update cell value in database
+async function updateCellValue(tableName, rowId, column, newValue) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/users/tables/${tableName}/rows/${rowId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                [column]: newValue
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update cell');
+        }
+        
+        const result = await response.json();
+        console.log(`✅ Updated ${column} to ${newValue}`);
+        return result;
+        
+    } catch (error) {
+        console.error('❌ Error updating cell:', error);
+        throw error;
+    }
+}
+
+// Function to delete row
+async function deleteRow(tableName, rowId) {
+    if (!confirm('Are you sure you want to delete this row?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/users/tables/${tableName}/rows/${rowId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to delete row');
+        }
+        
+        // Reload the table data
+        loadTableData(tableName);
+        
+    } catch (error) {
+        console.error('❌ Error deleting row:', error);
+        alert('Error deleting row: ' + error.message);
+    }
+}

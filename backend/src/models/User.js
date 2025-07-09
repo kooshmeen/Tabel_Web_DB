@@ -22,7 +22,7 @@ class User {
 
     // Get user by ID
     static async getUserById(userId) {
-        const query = `SELECT id, name, email FROM users WHERE id = $1`;
+        const query = `SELECT id, name, email, role FROM users WHERE id = $1`;
         const values = [userId];
         try {
             const result = await pool.query(query, values);
@@ -273,6 +273,116 @@ class User {
         } catch (error) {
             console.error('Error in getTableData model method:', error);
             throw new Error('Error fetching table data: ' + error.message);
+        }
+    }
+
+    // Update a specific row in a table
+    static async updateTableRow(tableName, rowId, updates, currentUser) {
+        try {
+            const { filterColumnsForEdit } = require('../config/columnPermissions');
+            
+            // Validate table name
+            const validTablesQuery = `
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_name = $1
+            `;
+            const validTableResult = await pool.query(validTablesQuery, [tableName]);
+            
+            if (validTableResult.rows.length === 0) {
+                throw new Error('Table not found');
+            }
+            
+            // Get table columns
+            const columnsQuery = `
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns 
+                WHERE table_name = $1 AND table_schema = 'public'
+                ORDER BY ordinal_position
+            `;
+            const columnsResult = await pool.query(columnsQuery, [tableName]);
+            const allColumns = columnsResult.rows;
+            
+            // Get current row data for conditional permissions
+            const currentRowQuery = `SELECT * FROM ${tableName} WHERE id = $1`;
+            const currentRowResult = await pool.query(currentRowQuery, [rowId]);
+            const currentRow = currentRowResult.rows[0];
+            
+            if (!currentRow) {
+                throw new Error('Row not found');
+            }
+            
+            // Filter columns that can be edited
+            const editableColumns = filterColumnsForEdit(allColumns, tableName, currentUser, currentRow);
+            const editableColumnNames = editableColumns.map(col => col.column_name);
+            
+            // Validate that all update fields are editable
+            const updateFields = Object.keys(updates);
+            for (const field of updateFields) {
+                if (!editableColumnNames.includes(field)) {
+                    throw new Error(`Column '${field}' is not editable`);
+                }
+            }
+            
+            // Build dynamic UPDATE query
+            const setClause = updateFields.map((field, index) => `${field} = $${index + 2}`).join(', ');
+            const updateQuery = `
+                UPDATE ${tableName} 
+                SET ${setClause} 
+                WHERE id = $1 
+                RETURNING *
+            `;
+            
+            const values = [rowId, ...updateFields.map(field => updates[field])];
+            const result = await pool.query(updateQuery, values);
+            
+            return result.rows[0];
+            
+        } catch (error) {
+            console.error('Error updating table row:', error);
+            throw new Error('Error updating table row: ' + error.message);
+        }
+    }
+
+    // Delete a specific row from a table
+    static async deleteTableRow(tableName, rowId, currentUser) {
+        try {
+            // Validate table name
+            const validTablesQuery = `
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_name = $1
+            `;
+            const validTableResult = await pool.query(validTablesQuery, [tableName]);
+            
+            if (validTableResult.rows.length === 0) {
+                throw new Error('Table not found');
+            }
+            
+            // Check if row exists
+            const checkRowQuery = `SELECT id FROM ${tableName} WHERE id = $1`;
+            const checkResult = await pool.query(checkRowQuery, [rowId]);
+            
+            if (checkResult.rows.length === 0) {
+                throw new Error('Row not found');
+            }
+            
+            // For now, allow all admins to delete rows
+            // You can add more specific permissions here
+            if (currentUser.role !== 'admin') {
+                console.log('---------', currentUser);
+                throw new Error('Only admins can delete rows');
+            }
+            
+            // Delete the row
+            const deleteQuery = `DELETE FROM ${tableName} WHERE id = $1 RETURNING id`;
+            const result = await pool.query(deleteQuery, [rowId]);
+            
+            return result.rows[0];
+            
+        } catch (error) {
+            console.error('Error deleting table row:', error);
+            throw new Error('Error deleting table row: ' + error.message);
         }
     }
 }

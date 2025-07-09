@@ -246,6 +246,57 @@ class UserController {
             });
         }
     }
+
+    // PATCH /api/users/tables/:tableName/rows/:rowId - Update specific row
+    static async updateTableRow(req, res) {
+        try {
+            const { tableName, rowId } = req.params;
+            const updates = req.body;
+            const currentUser = req.user;
+            
+            console.log(`🔄 Updating row ${rowId} in table ${tableName}:`, updates);
+            
+            const result = await User.updateTableRow(tableName, rowId, updates, currentUser);
+            
+            res.json({
+                success: true,
+                data: result,
+                message: 'Row updated successfully'
+            });
+            
+        } catch (error) {
+            console.error('❌ Error in updateTableRow controller:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    // DELETE /api/users/tables/:tableName/rows/:rowId - Delete specific row
+    static async deleteTableRow(req, res) {
+        try {
+            const { tableName, rowId } = req.params;
+            const currentUser = req.user;
+            
+            console.log(`🗑️ Deleting row ${rowId} from table ${tableName}`);
+            
+            const result = await User.deleteTableRow(tableName, rowId, currentUser);
+            
+            res.json({
+                success: true,
+                data: result,
+                message: 'Row deleted successfully'
+            });
+            
+        } catch (error) {
+            console.error('❌ Error in deleteTableRow controller:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
 }
 
 module.exports = UserController;

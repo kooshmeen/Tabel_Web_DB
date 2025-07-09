@@ -40,11 +40,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (userRole === 'admin') {
                     setTimeout(() => {
                         window.location.href = 'dashboard-admin.html';
-                    }, 1000); // Redirect to admin dashboard
+                    }, 200); // Redirect to admin dashboard
                 } else if (userRole === 'user') {
                     setTimeout(() => {
                         window.location.href = 'dashboard-user.html';
-                    }, 1000); // Redirect to user dashboard
+                    }, 200); // Redirect to user dashboard
                 }
             } else {
                 errorDiv.style.display = 'block';
