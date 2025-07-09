@@ -55,11 +55,28 @@
             <div id="tables-empty" class="empty-state hidden">No tables found</div>
         </section>
 
-        <!-- Table Data Section -->
+        <!-- Update the Table Data Section -->
         <section id="table-data-section" class="dashboard-section">
             <div class="section-header">
                 <h2 id="table-data-title">Table Data</h2>
-                <button id="back-to-tables-btn" class="btn btn-secondary">Back to Tables</button>
+                <div class="table-controls">
+                    <button id="refresh-table-btn" class="btn btn-secondary">Refresh</button>
+                    <button id="add-entry-btn" class="btn btn-secondary">Add Entry</button>
+                    <button id="back-to-tables-btn" class="btn btn-secondary">Back to Tables</button>
+                </div>
+            </div>
+            
+            <!-- Add search and filter controls -->
+            <div class="table-filters">
+                <div class="filter-group">
+                    <input type="text" id="search-input" placeholder="Search entries..." class="search-input">
+                    <select id="column-filter" class="filter-select">
+                        <option value="">Filter by column...</option>
+                    </select>
+                </div>
+                <div class="table-info">
+                    <span id="entry-counter" class="entry-counter">0 entries</span>
+                </div>
             </div>
             
             <div class="table-container">
@@ -71,6 +88,18 @@
                         <!-- Table data will be loaded here -->
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- Add pagination controls -->
+            <div class="table-pagination">
+                <div class="pagination-info">
+                    <span id="pagination-info">Showing 1-50 of 100 entries</span>
+                </div>
+                <div class="pagination-controls">
+                    <button id="prev-page" class="btn btn-sm btn-secondary">Previous</button>
+                    <span id="page-numbers" class="page-numbers"></span>
+                    <button id="next-page" class="btn btn-sm btn-secondary">Next</button>
+                </div>
             </div>
             
             <div id="table-data-loading" class="loading hidden">Loading table data...</div>

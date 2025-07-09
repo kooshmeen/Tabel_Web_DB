@@ -96,6 +96,9 @@ function setupEventListeners() {
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         document.querySelector('.nav-link[data-section="tables"]')?.classList.add('active');
     });
+    
+    // Setup table controls
+    setupTableControls();
 }
 
 // The main function to load tables
@@ -269,6 +272,15 @@ function renderTable(tableName) {
     tableBody.innerHTML = '';
     if (tableHead) tableHead.innerHTML = '';
     
+    // Update entry counter
+    updateEntryCounter(rows.length, tableName);
+    
+    // Populate column filter
+    populateColumnFilter(columns);
+    
+    // Setup search and filter functionality
+    setupSearchAndFilter();
+    
     // Create table headers with sorting functionality
     if (tableHead && columns && columns.length > 0) {
         const headerRow = document.createElement('tr');
@@ -339,6 +351,18 @@ function renderTable(tableName) {
             // Handle null/undefined values
             if (aValue === null || aValue === undefined) aValue = '';
             if (bValue === null || bValue === undefined) bValue = '';
+            
+            // Special handling for datetime columns
+            if (currentSortColumn.includes('_at') || currentSortColumn.includes('date') || currentSortColumn.includes('time')) {
+                // Try to parse as dates
+                const aDate = new Date(aValue);
+                const bDate = new Date(bValue);
+                
+                if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
+                    // Valid dates - sort by timestamp
+                    return currentSortDirection === 'asc' ? aDate.getTime() - bDate.getTime() : bDate.getTime() - aDate.getTime();
+                }
+            }
             
             // Convert to strings for comparison
             aValue = String(aValue).toLowerCase();
@@ -611,5 +635,193 @@ async function deleteRow(tableName, rowId) {
     } catch (error) {
         console.error('❌ Error deleting row:', error);
         alert('Error deleting row: ' + error.message);
+    }
+}
+
+// Add this new function to update the entry counter
+function updateEntryCounter(count, tableName) {
+    const counterElement = document.getElementById('entry-counter');
+    if (counterElement) {
+        counterElement.textContent = `Showing ${count} entries`;
+    }
+    
+    // Update the table title with count
+    const tableTitle = document.getElementById('table-data-title');
+    if (tableTitle) {
+        tableTitle.textContent = `Table Data - ${tableName} (${count} entries)`;
+    }
+}
+
+// Add search functionality
+function setupSearchAndFilter() {
+    const searchInput = document.getElementById('search-input');
+    const columnFilter = document.getElementById('column-filter');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(handleSearch, 300));
+    }
+    
+    if (columnFilter) {
+        columnFilter.addEventListener('change', handleColumnFilter);
+    }
+}
+
+// Debounce function to limit search frequency
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Handle search functionality
+function handleSearch(event) {
+    const searchTerm = event.target.value.toLowerCase();
+    const tableBody = document.getElementById('table-data-tbody');
+    const rows = tableBody.querySelectorAll('tr');
+    
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        let matchFound = false;
+        
+        cells.forEach(cell => {
+            if (cell.textContent.toLowerCase().includes(searchTerm)) {
+                matchFound = true;
+            }
+        });
+        
+        if (matchFound) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    // Update counter for filtered results
+    const counterElement = document.getElementById('entry-counter');
+    if (counterElement) {
+        if (searchTerm) {
+            counterElement.textContent = `Showing ${visibleCount} of ${rows.length} entries (filtered)`;
+        } else {
+            counterElement.textContent = `Showing ${rows.length} entries`;
+        }
+    }
+}
+
+// Populate column filter dropdown
+function populateColumnFilter(columns) {
+    const columnFilter = document.getElementById('column-filter');
+    if (columnFilter) {
+        columnFilter.innerHTML = '<option value="">Filter by column...</option>';
+        columns.forEach(column => {
+            const option = document.createElement('option');
+            option.value = column.column_name;
+            option.textContent = column.column_name;
+            columnFilter.appendChild(option);
+        });
+    }
+}
+
+// Add refresh functionality
+function setupTableControls() {
+    const refreshBtn = document.getElementById('refresh-table-btn');
+    const addEntryBtn = document.getElementById('add-entry-btn');
+    
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            if (currentTableData) {
+                loadTableData(currentTableData.tableName);
+            }
+        });
+    }
+    
+    if (addEntryBtn) {
+        addEntryBtn.addEventListener('click', () => {
+            // Implement add entry functionality
+            console.log('Add entry functionality to be implemented');
+        });
+    }
+}
+
+// Update your setupEventListeners function
+function setupEventListeners() {
+    // Logout
+    document.getElementById('logout-btn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    });
+    
+    // Refresh tables
+    document.getElementById('refresh-tables-btn').addEventListener('click', function() {
+        console.log('🔄 Refreshing tables...');
+        loadDatabaseTables();
+    });
+    
+    // Back to tables button
+    document.getElementById('back-to-tables-btn')?.addEventListener('click', function() {
+        showSection('tables');
+        // Update nav active state
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.querySelector('.nav-link[data-section="tables"]')?.classList.add('active');
+    });
+    
+    // Setup table controls
+    setupTableControls();
+}
+
+// Handle column filtering
+function handleColumnFilter(event) {
+    const selectedColumn = event.target.value;
+    const searchInput = document.getElementById('search-input');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const tableBody = document.getElementById('table-data-tbody');
+    const rows = tableBody.querySelectorAll('tr');
+
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        let matchFound = false;
+
+        cells.forEach((cell, idx) => {
+            // Only filter by the selected column if one is chosen
+            if (selectedColumn) {
+                const columnFilter = document.getElementById('column-filter');
+                const columnIndex = Array.from(columnFilter.options).findIndex(opt => opt.value === selectedColumn);
+                if (idx === columnIndex && cell.textContent.toLowerCase().includes(searchTerm)) {
+                    matchFound = true;
+                }
+            } else {
+                // If no column selected, search all columns
+                if (cell.textContent.toLowerCase().includes(searchTerm)) {
+                    matchFound = true;
+                }
+            }
+        });
+
+        if (matchFound) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update counter for filtered results
+    const counterElement = document.getElementById('entry-counter');
+    if (counterElement) {
+        if (searchTerm || selectedColumn) {
+            counterElement.textContent = `Showing ${visibleCount} of ${rows.length} entries (filtered)`;
+        } else {
+            counterElement.textContent = `Showing ${rows.length} entries`;
+        }
     }
 }
