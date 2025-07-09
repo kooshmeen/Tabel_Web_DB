@@ -123,6 +123,26 @@ body {
 .data-table th {
     background: #f8f9fa;
     font-weight: bold;
+    position: relative;
+}
+
+.data-table th:hover {
+    background: #e9ecef;
+}
+
+.sort-indicator {
+    font-size: 10px;
+    line-height: 1;
+    transition: all 0.2s ease;
+}
+
+.data-table th:hover .sort-indicator {
+    opacity: 1 !important;
+}
+
+/* Add some spacing for better readability */
+.data-table th div {
+    min-height: 20px;
 }
 
 .data-table tr:hover {

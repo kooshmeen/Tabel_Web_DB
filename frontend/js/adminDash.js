@@ -1,4 +1,7 @@
 let currentUser = null;
+let currentSortColumn = null;
+let currentSortDirection = 'asc';
+let currentTableData = null; // Store the current table data for sorting
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin Dashboard loading...');
@@ -230,114 +233,14 @@ async function loadTableData(tableName) {
         if (result.success && result.data && result.data.rows && result.data.rows.length > 0) {
             console.log(`✅ Displaying data for table ${tableName}:`, result.data.rows.length, 'rows');
             
-            const tableData = result.data;
-            const { columns, rows } = tableData;
+            // Store the data for sorting
+            currentTableData = result.data;
             
-            // Create table headers with edit indicators
-            if (tableHead && columns && columns.length > 0) {
-                const headerRow = document.createElement('tr');
-                columns.forEach(column => {
-                    const th = document.createElement('th');
-                    th.textContent = column.column_name;
-                    
-                    // Add visual indicators for column permissions
-                    if (column.permissions && !column.permissions.editable) {
-                        th.classList.add('readonly-column');
-                        th.title = column.permissions.reason || 'This column is not editable';
-                    } else if (column.permissions && column.permissions.editable) {
-                        th.classList.add('editable-column');
-                        th.title = 'Click cells to edit';
-                    }
-                    
-                    headerRow.appendChild(th);
-                });
-                
-                // Add actions column
-                const actionsHeader = document.createElement('th');
-                actionsHeader.textContent = 'Actions';
-                headerRow.appendChild(actionsHeader);
-                
-                tableHead.appendChild(headerRow);
-            }
+            // Reset sorting when loading new table
+            currentSortColumn = null;
+            currentSortDirection = 'asc';
             
-            // Create table rows with edit capabilities
-            if (result.data.rowsWithPermissions) {
-                // Use the new row-specific permissions
-                result.data.rowsWithPermissions.forEach((rowData, index) => {
-                    const tr = document.createElement('tr');
-                    const row = rowData.data;
-                    const rowPermissions = rowData.permissions;
-                    
-                    rowPermissions.forEach(column => {
-                        const td = document.createElement('td');
-                        const value = row[column.column_name];
-                        
-                        if (column.permissions && column.permissions.editable) {
-                            // Make editable cells
-                            td.classList.add('editable-cell');
-                            td.setAttribute('data-column', column.column_name);
-                            td.setAttribute('data-table', tableName);
-                            td.setAttribute('data-row-id', row.id || index);
-                            td.setAttribute('data-original-value', value || '');
-                            td.addEventListener('click', handleCellEdit);
-                            td.title = 'Click to edit';
-                        } else {
-                            // Read-only cells
-                            td.classList.add('readonly-cell');
-                            td.title = column.permissions?.reason || 'Read-only';
-                        }
-                        
-                        td.textContent = value !== null && value !== undefined ? value : '';
-                        tr.appendChild(td);
-                    });
-                    
-                    // Add actions column
-                    const actionsCell = document.createElement('td');
-                    actionsCell.innerHTML = `
-                        <button class="btn btn-sm btn-danger" onclick="deleteRow('${tableName}', ${row.id || index})">Delete</button>
-                    `;
-                    tr.appendChild(actionsCell);
-                    
-                    tableBody.appendChild(tr);
-                });
-            } else {
-                // Fallback to old method if rowsWithPermissions is not available
-                rows.forEach((row, index) => {
-                    const tr = document.createElement('tr');
-                    
-                    columns.forEach(column => {
-                        const td = document.createElement('td');
-                        const value = row[column.column_name];
-                        
-                        if (column.permissions && column.permissions.editable) {
-                            // Make editable cells
-                            td.classList.add('editable-cell');
-                            td.setAttribute('data-column', column.column_name);
-                            td.setAttribute('data-table', tableName);
-                            td.setAttribute('data-row-id', row.id || index);
-                            td.setAttribute('data-original-value', value || '');
-                            td.addEventListener('click', handleCellEdit);
-                            td.title = 'Click to edit';
-                        } else {
-                            // Read-only cells
-                            td.classList.add('readonly-cell');
-                            td.title = column.permissions?.reason || 'Read-only';
-                        }
-                        
-                        td.textContent = value !== null && value !== undefined ? value : '';
-                        tr.appendChild(td);
-                    });
-                    
-                    // Add actions column
-                    const actionsCell = document.createElement('td');
-                    actionsCell.innerHTML = `
-                        <button class="btn btn-sm btn-danger" onclick="deleteRow('${tableName}', ${row.id || index})">Delete</button>
-                    `;
-                    tr.appendChild(actionsCell);
-                    
-                    tableBody.appendChild(tr);
-                });
-            }
+            renderTable(tableName);
             
         } else {
             console.log(`❌ No data found for table ${tableName}`);
@@ -349,6 +252,216 @@ async function loadTableData(tableName) {
         loading.classList.add('hidden');
         alert(`Error loading data for table ${tableName}: ` + error.message);
     }
+}
+
+// New function to render the table with current data and sorting
+function renderTable(tableName) {
+    const tableBody = document.getElementById('table-data-tbody');
+    const tableHead = document.getElementById('table-data-thead');
+    
+    if (!currentTableData || !tableBody) {
+        return;
+    }
+    
+    const { columns, rows } = currentTableData;
+    
+    // Clear existing content
+    tableBody.innerHTML = '';
+    if (tableHead) tableHead.innerHTML = '';
+    
+    // Create table headers with sorting functionality
+    if (tableHead && columns && columns.length > 0) {
+        const headerRow = document.createElement('tr');
+        columns.forEach(column => {
+            const th = document.createElement('th');
+            th.style.cursor = 'pointer';
+            th.style.userSelect = 'none';
+            th.style.position = 'relative';
+            
+            // Create header content with sort indicator
+            const headerContent = document.createElement('div');
+            headerContent.style.display = 'flex';
+            headerContent.style.alignItems = 'center';
+            headerContent.style.justifyContent = 'space-between';
+            
+            const columnName = document.createElement('span');
+            columnName.textContent = column.column_name;
+            headerContent.appendChild(columnName);
+            
+            // Add sort indicator
+            const sortIndicator = document.createElement('span');
+            sortIndicator.className = 'sort-indicator';
+            sortIndicator.style.marginLeft = '5px';
+            sortIndicator.style.color = '#666';
+            
+            if (currentSortColumn === column.column_name) {
+                sortIndicator.textContent = currentSortDirection === 'asc' ? '▲' : '▼';
+                sortIndicator.style.color = '#007bff';
+            } else {
+                sortIndicator.textContent = '▲▼';
+                sortIndicator.style.opacity = '0.3';
+            }
+            
+            headerContent.appendChild(sortIndicator);
+            th.appendChild(headerContent);
+            
+            // Add visual indicators for column permissions
+            if (column.permissions && !column.permissions.editable) {
+                th.classList.add('readonly-column');
+                th.title = `${column.permissions.reason || 'This column is not editable'} - Click to sort`;
+            } else if (column.permissions && column.permissions.editable) {
+                th.classList.add('editable-column');
+                th.title = 'Click cells to edit - Click header to sort';
+            }
+            
+            // Add click handler for sorting
+            th.addEventListener('click', () => sortTable(column.column_name, tableName));
+            
+            headerRow.appendChild(th);
+        });
+        
+        // Add actions column
+        const actionsHeader = document.createElement('th');
+        actionsHeader.textContent = 'Actions';
+        actionsHeader.style.cursor = 'default';
+        headerRow.appendChild(actionsHeader);
+        
+        tableHead.appendChild(headerRow);
+    }
+    
+    // Sort the data if a sort column is selected
+    let sortedData = [...rows];
+    if (currentSortColumn) {
+        sortedData.sort((a, b) => {
+            let aValue = a[currentSortColumn];
+            let bValue = b[currentSortColumn];
+            
+            // Handle null/undefined values
+            if (aValue === null || aValue === undefined) aValue = '';
+            if (bValue === null || bValue === undefined) bValue = '';
+            
+            // Convert to strings for comparison
+            aValue = String(aValue).toLowerCase();
+            bValue = String(bValue).toLowerCase();
+            
+            // Try to parse as numbers if possible
+            const aNum = parseFloat(aValue);
+            const bNum = parseFloat(bValue);
+            
+            if (!isNaN(aNum) && !isNaN(bNum)) {
+                // Numeric sort
+                return currentSortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+            } else {
+                // String sort
+                if (aValue < bValue) return currentSortDirection === 'asc' ? -1 : 1;
+                if (aValue > bValue) return currentSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            }
+        });
+    }
+    
+    // Create table rows with edit capabilities
+    if (currentTableData.rowsWithPermissions) {
+        // Use the new row-specific permissions
+        const sortedRowsWithPermissions = sortedData.map(row => {
+            // Find the original row data with permissions
+            return currentTableData.rowsWithPermissions.find(rwp => 
+                JSON.stringify(rwp.data) === JSON.stringify(row)
+            );
+        }).filter(Boolean);
+        
+        sortedRowsWithPermissions.forEach((rowData, index) => {
+            const tr = document.createElement('tr');
+            const row = rowData.data;
+            const rowPermissions = rowData.permissions;
+            
+            rowPermissions.forEach(column => {
+                const td = document.createElement('td');
+                const value = row[column.column_name];
+                
+                if (column.permissions && column.permissions.editable) {
+                    // Make editable cells
+                    td.classList.add('editable-cell');
+                    td.setAttribute('data-column', column.column_name);
+                    td.setAttribute('data-table', tableName);
+                    td.setAttribute('data-row-id', row.id || index);
+                    td.setAttribute('data-original-value', value || '');
+                    td.addEventListener('click', handleCellEdit);
+                    td.title = 'Click to edit';
+                } else {
+                    // Read-only cells
+                    td.classList.add('readonly-cell');
+                    td.title = column.permissions?.reason || 'Read-only';
+                }
+                
+                td.textContent = value !== null && value !== undefined ? value : '';
+                tr.appendChild(td);
+            });
+            
+            // Add actions column
+            const actionsCell = document.createElement('td');
+            actionsCell.innerHTML = `
+                <button class="btn btn-sm btn-danger" onclick="deleteRow('${tableName}', ${row.id || index})">Delete</button>
+            `;
+            tr.appendChild(actionsCell);
+            
+            tableBody.appendChild(tr);
+        });
+    } else {
+        // Fallback to old method if rowsWithPermissions is not available
+        sortedData.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            
+            columns.forEach(column => {
+                const td = document.createElement('td');
+                const value = row[column.column_name];
+                
+                if (column.permissions && column.permissions.editable) {
+                    // Make editable cells
+                    td.classList.add('editable-cell');
+                    td.setAttribute('data-column', column.column_name);
+                    td.setAttribute('data-table', tableName);
+                    td.setAttribute('data-row-id', row.id || index);
+                    td.setAttribute('data-original-value', value || '');
+                    td.addEventListener('click', handleCellEdit);
+                    td.title = 'Click to edit';
+                } else {
+                    // Read-only cells
+                    td.classList.add('readonly-cell');
+                    td.title = column.permissions?.reason || 'Read-only';
+                }
+                
+                td.textContent = value !== null && value !== undefined ? value : '';
+                tr.appendChild(td);
+            });
+            
+            // Add actions column
+            const actionsCell = document.createElement('td');
+            actionsCell.innerHTML = `
+                <button class="btn btn-sm btn-danger" onclick="deleteRow('${tableName}', ${row.id || index})">Delete</button>
+            `;
+            tr.appendChild(actionsCell);
+            
+            tableBody.appendChild(tr);
+        });
+    }
+}
+
+// New function to handle sorting
+function sortTable(columnName, tableName) {
+    console.log(`🔄 Sorting table by column: ${columnName}`);
+    
+    if (currentSortColumn === columnName) {
+        // Toggle direction if same column
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        // New column, start with ascending
+        currentSortColumn = columnName;
+        currentSortDirection = 'asc';
+    }
+    
+    // Re-render the table with new sorting
+    renderTable(tableName);
 }
 
 // Function to handle table data view button click
