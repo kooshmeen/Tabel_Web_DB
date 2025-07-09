@@ -373,6 +373,16 @@ class User {
                 console.log('---------', currentUser);
                 throw new Error('Only admins can delete rows');
             }
+
+            // Prevent admins from deleting rows in the users table where the target is an admin
+            if (tableName === 'users') {
+                const rowQuery = `SELECT role FROM ${tableName} WHERE id = $1`;
+                const rowResult = await pool.query(rowQuery, [rowId]);
+                const targetRow = rowResult.rows[0];
+                if (targetRow && targetRow.role === 'admin') {
+                    throw new Error('Cannot delete admin user');
+                }
+            }
             
             // Delete the row
             const deleteQuery = `DELETE FROM ${tableName} WHERE id = $1 RETURNING id`;

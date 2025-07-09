@@ -22,7 +22,7 @@ const authMiddleware = async (req, res, next) => {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role // Assuming the User model has a role field
+            role: user.role
         };
         next(); // Proceed to the next middleware or route handler
     } catch (error) {
