@@ -1542,7 +1542,6 @@ Node.js v20.18.1
 🚀 Server running on http://localhost:3000
 📊 Health check: http://localhost:3000/health
 [32m[nodemon] clean exit - waiting for changes before restart[39m
-[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
 [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
@@ -1556,37 +1555,42 @@ Node.js v20.18.1
 [dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
 🚀 Server running on http://localhost:3000
 📊 Health check: http://localhost:3000/health
-📨 GET /api/users/tables
-Request body: undefined
-✅ Conectat la PostgreSQL
-📊 Fetching all database tables from model...
-Found tables: [ { table_name: 'users', table_schema: 'public' } ]
-📨 GET /api/users/tables
-Request body: undefined
-📊 Fetching all database tables from model...
-Found tables: [ { table_name: 'users', table_schema: 'public' } ]
-📨 GET /api/users/tables/users
-Request body: undefined
-📊 Fetching data for table: users
-📨 DELETE /api/users/tables/users/rows/7
-Request body: undefined
-🗑️ Deleting row 7 from table users
-User 9 with role undefined tried to delete a row from table users
-Error deleting table row: Error: Only admins can delete rows
-    at User.deleteTableRow (/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/models/User.js:374:23)
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async deleteTableRow (/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/controllers/userController.js:284:28)
-❌ Error in deleteTableRow controller: Error: Error deleting table row: Only admins can delete rows
-    at User.deleteTableRow (/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/models/User.js:385:19)
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async deleteTableRow (/home/[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
-[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.co[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
 [dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
 🚀 Server running on http://localhost:3000
-📊 Health check: htt[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node src/app.js`[39[[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.co[d[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.co[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com[32m[nodemon] restarting due to changes...[39m
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+g `node src/app.js`[39m
 [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
 [dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
 🚀 Server running on http://localhost:3000
@@ -1754,48 +1758,34 @@ Node.js v20.18.1
 [32m[nodemon] restarting [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starti[dotenv@17.0.1] injecting [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dot[dotenv@17.0.1] injecting [dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dot🚀 Server running on htt🚀 Server running on http://localhost:3000
 📊 Health check: htt[32m[nodemon] clean exit - waiting for changes before restart[39m
-anges before restart[39m
-e src/app.js`[39m
-[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
-/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/models/User.js:388
-        } catch (error) {
-          ^^^^^
-
-SyntaxError: Unexpected token 'catch'
-    at wrapSafe (node:internal/modules/cjs/loader:1378:20)
-    at Module._compile (node:internal/modules/cjs/loader:1428:41)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-    at Module.load (node:internal/modules/cjs/loader:1288:32)
-    at Module._load (node:internal/modules/cjs/loader:1104:12)
-    at Module.require (node:internal/modules/cjs/loader:1311:19)
-    at require (node:internal/modules/helpers:179:18)
-    at Object.<anonymous> (/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/controllers/userController.js:1:14)
-    at Module._compile (node:internal/modules/cjs/loader:1469:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-
-Node.js v20.18.1
-[31m[nodemon] app crashed - waiting for file changes before starting...[39m
-[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starti[dotenv@17.0.1] injecting [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dot[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting [32m[nodemon] restarti[32m[nodemon] starting `n[32m[nodemon] starti[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on htt🚀 Server running on http://localhost:3000
+📊 Health check: htt[32m[nodemon] clean exit 📨 GET /api/users/tables
+Request body: u[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
 [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
-/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/models/User.js:390
-        } catch (error) {
-          ^^^^^
-
-SyntaxError: Unexpected token 'catch'
-    at wrapSafe (node:internal/modules/cjs/loader:1378:20)
-    at Module._compile (node:internal/modules/cjs/loader:1428:41)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-    at Module.load (node:internal/modules/cjs/loader:1288:32)
-    at Module._load (node:internal/modules/cjs/loader:1104:12)
-    at Module.require (node:internal/modules/cjs/loader:1311:19)
-    at require (node:internal/modules/helpers:179:18)
-    at Object.<anonymous> (/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/controllers/userController.js:1:14)
-    at Module._compile (node:internal/modules/cjs/loader:1469:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-
-Node.js v20.18.1
-[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before[dotenv@17.0.1[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before[dotenv@17.0.1[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
 [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
@@ -1803,7 +1793,32 @@ Node.js v20.18.1
 🚀 Server running on http://localhost:3000
 📊 Health check: http://localhost:3000/health
 [32m[nodemon] clean exit - waiting for changes before restart[39m
-.[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+📨 GET /api/users/tables
+Request body: undefined
+✅ Conectat la PostgreSQL
+📊 Fetching all database tables from model...
+Found tables: [ { table_name: 'users', table_schema: 'public' } ]
+📨 GET /api/users/tables/users
+Request body: undefined
+📊 Fetching data for table: users
+anges before restart[39m
+rver running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
 [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
 [dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
@@ -1812,50 +1827,24 @@ Node.js v20.18.1
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
 [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
-/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/models/User.js:386
-        } catch (error) {
-          ^^^^^
-
-SyntaxError: Unexpected token 'catch'
-    at wrapSafe (node:internal/modules/cjs/loader:1378:20)
-    at Module._compile (node:internal/modules/cjs/loader:1428:41)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-    at Module.load (node:internal/modules/cjs/loader:1288:32)
-    at Module._load (node:internal/modules/cjs/loader:1104:12)
-    at Module.require (node:internal/modules/cjs/loader:1311:19)
-    at require (node:internal/modules/helpers:179:18)
-    at Object.<anonymous> (/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/controllers/userController.js:1:14)
-    at Module._compile (node:internal/modules/cjs/loader:1469:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-
-Node.js v20.18.1
-[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
 [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
-/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/models/User.js:388
-        } catch (error) {
-          ^^^^^
-
-SyntaxError: Unexpected token 'catch'
-    at wrapSafe (node:internal/modules/cjs/loader:1378:20)
-    at Module._compile (node:internal/modules/cjs/loader:1428:41)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-    at Module.load (node:internal/modules/cjs/loader:1288:32)
-    at Module._load (node:internal/modules/cjs/loader:1104:12)
-    at Module.require (node:internal/modules/cjs/loader:1311:19)
-    at require (node:internal/modules/helpers:179:18)
-    at Object.<anonymous> (/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/controllers/userController.js:1:14)
-    at Module._compile (node:internal/modules/cjs/loader:1469:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-
-Node.js v20.18.1
-[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node src/app.js`[39m
 [dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
-/home/cosmin/Desktop/Work/Proiecte/1_Tabel_Web_DB/backend/src/models/User.js:390
-        } catch (error) {
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+ (error) {
           ^^^^^
 
 SyntaxError: Unexpected token 'catch'
@@ -1949,3 +1938,55 @@ Request body: undefined
 ✅ Conectat la PostgreSQL
 📊 Fetching all database tables from model...
 Found tables: [ { table_name: 'users', table_schema: 'public' } ]
+📨 GET /api/users/tables/users
+Request body: undefined
+✅ Conectat la PostgreSQL
+📊 Fetching data for table: users
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[dotenv@17.0.1] injecting env (8) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+[dotenv@17.0.1] injecting env (0) from .env – [tip] encrypt with dotenvx: https://dotenvx.com
+🚀 Server running on http://localhost:3000
+📊 Health check: http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m

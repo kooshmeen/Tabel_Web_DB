@@ -261,41 +261,83 @@ async function loadTableData(tableName) {
             }
             
             // Create table rows with edit capabilities
-            rows.forEach((row, index) => {
-                const tr = document.createElement('tr');
-                
-                columns.forEach(column => {
-                    const td = document.createElement('td');
-                    const value = row[column.column_name];
+            if (result.data.rowsWithPermissions) {
+                // Use the new row-specific permissions
+                result.data.rowsWithPermissions.forEach((rowData, index) => {
+                    const tr = document.createElement('tr');
+                    const row = rowData.data;
+                    const rowPermissions = rowData.permissions;
                     
-                    if (column.permissions && column.permissions.editable) {
-                        // Make editable cells
-                        td.classList.add('editable-cell');
-                        td.setAttribute('data-column', column.column_name);
-                        td.setAttribute('data-table', tableName);
-                        td.setAttribute('data-row-id', row.id || index);
-                        td.setAttribute('data-original-value', value || '');
-                        td.addEventListener('click', handleCellEdit);
-                        td.title = 'Click to edit';
-                    } else {
-                        // Read-only cells
-                        td.classList.add('readonly-cell');
-                        td.title = column.permissions?.reason || 'Read-only';
-                    }
+                    rowPermissions.forEach(column => {
+                        const td = document.createElement('td');
+                        const value = row[column.column_name];
+                        
+                        if (column.permissions && column.permissions.editable) {
+                            // Make editable cells
+                            td.classList.add('editable-cell');
+                            td.setAttribute('data-column', column.column_name);
+                            td.setAttribute('data-table', tableName);
+                            td.setAttribute('data-row-id', row.id || index);
+                            td.setAttribute('data-original-value', value || '');
+                            td.addEventListener('click', handleCellEdit);
+                            td.title = 'Click to edit';
+                        } else {
+                            // Read-only cells
+                            td.classList.add('readonly-cell');
+                            td.title = column.permissions?.reason || 'Read-only';
+                        }
+                        
+                        td.textContent = value !== null && value !== undefined ? value : '';
+                        tr.appendChild(td);
+                    });
                     
-                    td.textContent = value !== null && value !== undefined ? value : '';
-                    tr.appendChild(td);
+                    // Add actions column
+                    const actionsCell = document.createElement('td');
+                    actionsCell.innerHTML = `
+                        <button class="btn btn-sm btn-danger" onclick="deleteRow('${tableName}', ${row.id || index})">Delete</button>
+                    `;
+                    tr.appendChild(actionsCell);
+                    
+                    tableBody.appendChild(tr);
                 });
-                
-                // Add actions column
-                const actionsCell = document.createElement('td');
-                actionsCell.innerHTML = `
-                    <button class="btn btn-sm btn-danger" onclick="deleteRow('${tableName}', ${row.id || index})">Delete</button>
-                `;
-                tr.appendChild(actionsCell);
-                
-                tableBody.appendChild(tr);
-            });
+            } else {
+                // Fallback to old method if rowsWithPermissions is not available
+                rows.forEach((row, index) => {
+                    const tr = document.createElement('tr');
+                    
+                    columns.forEach(column => {
+                        const td = document.createElement('td');
+                        const value = row[column.column_name];
+                        
+                        if (column.permissions && column.permissions.editable) {
+                            // Make editable cells
+                            td.classList.add('editable-cell');
+                            td.setAttribute('data-column', column.column_name);
+                            td.setAttribute('data-table', tableName);
+                            td.setAttribute('data-row-id', row.id || index);
+                            td.setAttribute('data-original-value', value || '');
+                            td.addEventListener('click', handleCellEdit);
+                            td.title = 'Click to edit';
+                        } else {
+                            // Read-only cells
+                            td.classList.add('readonly-cell');
+                            td.title = column.permissions?.reason || 'Read-only';
+                        }
+                        
+                        td.textContent = value !== null && value !== undefined ? value : '';
+                        tr.appendChild(td);
+                    });
+                    
+                    // Add actions column
+                    const actionsCell = document.createElement('td');
+                    actionsCell.innerHTML = `
+                        <button class="btn btn-sm btn-danger" onclick="deleteRow('${tableName}', ${row.id || index})">Delete</button>
+                    `;
+                    tr.appendChild(actionsCell);
+                    
+                    tableBody.appendChild(tr);
+                });
+            }
             
         } else {
             console.log(`❌ No data found for table ${tableName}`);

@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 const bcrypt = require('bcrypt');
-const { filterColumnsForDisplay } = require('../config/columnPermissions');
+const { filterColumnsForDisplay, getRowPermissions } = require('../config/columnPermissions');
 
 class User {
     // Create a new user
@@ -226,7 +226,7 @@ class User {
             const columnsResult = await pool.query(columnsQuery, [tableName]);
             const allColumns = columnsResult.rows;
 
-            // Filter columns based on permissions - Fix: pass currentUser instead of allColumns
+            // Filter columns based on permissions (for display)
             const filteredColumns = filterColumnsForDisplay(allColumns, tableName, currentUser);
 
             if (filteredColumns.length === 0) {
@@ -249,19 +249,28 @@ class User {
             const dataQuery = `SELECT ${columnNames} FROM ${tableName} ORDER BY 1 LIMIT $1 OFFSET $2`;
             const dataResult = await pool.query(dataQuery, [limit, offset]);
             
-            // Filter the row data to only include visible columns
-            const filteredRows = dataResult.rows.map(row => {
+            // For each row, calculate permissions based on the actual row data
+            const rowsWithPermissions = dataResult.rows.map(row => {
+                // Get row-specific permissions
+                const rowPermissions = getRowPermissions(filteredColumns, tableName, currentUser, row);
+                
+                // Filter the row data to only include visible columns
                 const filteredRow = {};
-                filteredColumns.forEach(column => {
+                rowPermissions.forEach(column => {
                     filteredRow[column.column_name] = row[column.column_name];
                 });
-                return filteredRow;
+                
+                return {
+                    data: filteredRow,
+                    permissions: rowPermissions
+                };
             });
             
             return {
                 tableName,
                 columns: filteredColumns,
-                rows: filteredRows,
+                rows: rowsWithPermissions.map(r => r.data), // Just the data for backward compatibility
+                rowsWithPermissions, // Include permissions for frontend
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),

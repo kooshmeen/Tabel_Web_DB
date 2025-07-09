@@ -58,7 +58,7 @@ function getColumnPermissions(tableName, columnName, currentUser, targetRow = nu
     return columnConfig;
 }
 
-// Function to filter columns based on permissions - Fix: correct parameter order
+// Function to filter columns based on permissions
 function filterColumnsForDisplay(columns, tableName, currentUser) {
     return columns.filter(column => {
         const permissions = getColumnPermissions(tableName, column.column_name, currentUser);
@@ -66,6 +66,14 @@ function filterColumnsForDisplay(columns, tableName, currentUser) {
     }).map(column => ({
         ...column,
         permissions: getColumnPermissions(tableName, column.column_name, currentUser)
+    }));
+}
+
+// Add a new function to get permissions for a specific row
+function getRowPermissions(columns, tableName, currentUser, targetRow) {
+    return columns.map(column => ({
+        ...column,
+        permissions: getColumnPermissions(tableName, column.column_name, currentUser, targetRow)
     }));
 }
 
@@ -81,5 +89,6 @@ module.exports = {
     COLUMN_PERMISSIONS,
     getColumnPermissions,
     filterColumnsForDisplay,
-    filterColumnsForEdit
+    filterColumnsForEdit,
+    getRowPermissions // Add this new function
 };
