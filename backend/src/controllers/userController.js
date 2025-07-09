@@ -25,8 +25,9 @@ class UserController {
         try {
             const { tableName } = req.params;
             const { page = 1, limit = 50 } = req.query;
+            const currentUser = req.user; // From auth middleware
             
-            const tableData = await User.getTableData(tableName, page, limit);
+            const tableData = await User.getTableData(tableName, currentUser, page, limit);
             
             res.json({
                 success: true,

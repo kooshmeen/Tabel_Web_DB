@@ -1,5 +1,6 @@
 const pool = require('../config/database');
 const bcrypt = require('bcrypt');
+const { filterColumnsForDisplay } = require('../config/columnPermissions');
 
 class User {
     // Create a new user
@@ -199,7 +200,7 @@ class User {
     }
 
     // Get data for a specific table with pagination
-    static async getTableData(tableName, page = 1, limit = 50) {
+    static async getTableData(tableName, currentUser, page = 1, limit = 50) {
         try {
             console.log(`📊 Fetching data for table: ${tableName}`);
             
@@ -223,23 +224,44 @@ class User {
                 ORDER BY ordinal_position
             `;
             const columnsResult = await pool.query(columnsQuery, [tableName]);
-            const columns = columnsResult.rows;
+            const allColumns = columnsResult.rows;
+
+            // Filter columns based on permissions - Fix: pass currentUser instead of allColumns
+            const filteredColumns = filterColumnsForDisplay(allColumns, tableName, currentUser);
+
+            if (filteredColumns.length === 0) {
+                return {
+                    tableName,
+                    columns: [],
+                    rows: [],
+                    pagination: { page: 1, limit, total: 0, totalPages: 0 }
+                };
+            }
             
             // Get total count
             const countQuery = `SELECT COUNT(*) as total FROM ${tableName}`;
             const countResult = await pool.query(countQuery);
             const total = parseInt(countResult.rows[0].total);
             
-            // Get paginated data
+            // Build SELECT query with only visible columns
+            const columnNames = filteredColumns.map(col => col.column_name).join(', ');
             const offset = (page - 1) * limit;
-            const dataQuery = `SELECT * FROM ${tableName} ORDER BY 1 LIMIT $1 OFFSET $2`;
+            const dataQuery = `SELECT ${columnNames} FROM ${tableName} ORDER BY 1 LIMIT $1 OFFSET $2`;
             const dataResult = await pool.query(dataQuery, [limit, offset]);
-            const rows = dataResult.rows;
+            
+            // Filter the row data to only include visible columns
+            const filteredRows = dataResult.rows.map(row => {
+                const filteredRow = {};
+                filteredColumns.forEach(column => {
+                    filteredRow[column.column_name] = row[column.column_name];
+                });
+                return filteredRow;
+            });
             
             return {
                 tableName,
-                columns,
-                rows,
+                columns: filteredColumns,
+                rows: filteredRows,
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),

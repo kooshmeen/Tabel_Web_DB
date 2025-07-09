@@ -7,7 +7,6 @@ let currentUser = null;
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin Dashboard loading...');
     
-    // Check authentication
     const storedUser = localStorage.getItem('user');
     console.log('🔍 Stored user:', storedUser);
     
@@ -81,12 +80,19 @@ function setupEventListeners() {
         localStorage.clear();
         window.location.href = 'login.html';
     });
-    // Load tables on initial load
-    loadDatabaseTables();
+    
     // Refresh tables
     document.getElementById('refresh-tables-btn').addEventListener('click', function() {
         console.log('🔄 Refreshing tables...');
         loadDatabaseTables();
+    });
+    
+    // Back to tables button
+    document.getElementById('back-to-tables-btn')?.addEventListener('click', function() {
+        showSection('tables');
+        // Update nav active state
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.querySelector('.nav-link[data-section="tables"]')?.classList.add('active');
     });
 }
 
@@ -171,3 +177,132 @@ async function loadDatabaseTables() {
         alert('Error loading tables: ' + error.message);
     }
 }
+
+// Function to load data from a specific table
+async function loadTableData(tableName) {
+    console.log(`🔄 loadTableData called for table: ${tableName}`);
+    
+    const loading = document.getElementById('table-data-loading');
+    const tableBody = document.getElementById('table-data-tbody');
+    const tableHead = document.getElementById('table-data-thead');
+    const tableTitle = document.getElementById('table-data-title');
+    
+    if (!loading || !tableBody) {
+        console.error('❌ Required elements not found!');
+        return;
+    }
+    
+    loading.classList.remove('hidden');
+    tableBody.innerHTML = '';
+    if (tableHead) tableHead.innerHTML = '';
+    if (tableTitle) tableTitle.textContent = `Table Data - ${tableName}`;
+    
+    try {
+        const token = localStorage.getItem('token');
+        console.log('🔑 Token exists:', !!token);
+        
+        if (!token) {
+            console.error('❌ No token found in localStorage');
+            alert('No authentication token found. Please login again.');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+        
+        console.log('📡 Request headers:', headers);
+        console.log(`📡 Making request to /api/users/tables/${tableName}`);
+        
+        const response = await fetch(`/api/users/tables/${tableName}`, {
+            method: 'GET',
+            headers: headers
+        });
+        
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response ok:', response.ok);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Response error:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📡 Success response:', result);
+        
+        loading.classList.add('hidden');
+
+        if (result.success && result.data && result.data.rows && result.data.rows.length > 0) {
+            console.log(`✅ Displaying data for table ${tableName}:`, result.data.rows.length, 'rows');
+            
+            const tableData = result.data;
+
+            // Extract table data without 
+
+            const { columns, rows } = tableData;
+            
+            // Create table headers
+            if (tableHead && columns && columns.length > 0) {
+                const headerRow = document.createElement('tr');
+                columns.forEach(column => {
+                    const th = document.createElement('th');
+                    th.textContent = column.column_name;
+                    headerRow.appendChild(th);
+                });
+                tableHead.appendChild(headerRow);
+            }
+            
+            // Create table rows
+            rows.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                
+                // If we have column info, use it for consistent ordering
+                if (columns && columns.length > 0) {
+                    columns.forEach(column => {
+                        const td = document.createElement('td');
+                        const value = row[column.column_name];
+                        td.textContent = value !== null && value !== undefined ? value : '';
+                        tr.appendChild(td);
+                    });
+                } else {
+                    // Fallback: use all object values
+                    Object.values(row).forEach(value => {
+                        const td = document.createElement('td');
+                        td.textContent = value !== null && value !== undefined ? value : '';
+                        tr.appendChild(td);
+                    });
+                }
+                
+                tableBody.appendChild(tr);
+            });
+            
+        } else {
+            console.log(`❌ No data found for table ${tableName}`);
+            console.log('Result structure:', result);
+            document.getElementById('table-data-empty')?.classList.remove('hidden');
+        }
+        
+    } catch (error) {
+        console.error(`❌ Error loading data for table ${tableName}:`, error);
+        loading.classList.add('hidden');
+        alert(`Error loading data for table ${tableName}: ` + error.message);
+    }
+}
+
+// Function to handle table data view button click
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.matches('.btn-primary')) {
+        const row = e.target.closest('tr');
+        const tableName = row.querySelector('td:first-child').textContent.trim();
+        console.log(`🔄 Button clicked for table: ${tableName}`);
+        
+        // Load data for the clicked table
+        loadTableData(tableName);
+        
+        // Show the table data section
+        showSection('table-data');
+    }
+});
