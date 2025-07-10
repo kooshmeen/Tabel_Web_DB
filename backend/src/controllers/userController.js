@@ -20,6 +20,36 @@ class UserController {
         }
     }
 
+    // GET /api/users/tables/:tableName/columns - Get columns for a specific table
+    static async getTableColumns(req, res) {
+        try {
+            const { tableName } = req.params;
+            const currentUser = req.user; // From auth middleware
+            
+            const columns = await User.getTableColumns(tableName, currentUser);
+            
+            if (!columns) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Table not found'
+                });
+            }
+            
+            res.json({
+                success: true,
+                data: columns,
+                message: 'Table columns retrieved successfully'
+            });
+        }
+        catch (error) {
+            console.error('❌ Error in getTableColumns controller:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
     // GET /api/users/tables/:tableName - Get data for a specific table
     static async getTableData(req, res) {
         try {
@@ -37,32 +67,6 @@ class UserController {
             
         } catch (error) {
             console.error('❌ Error in getTableData controller:', error);
-            res.status(500).json({
-                success: false,
-                error: error.message
-            });
-        }
-    }
-
-    // Get addable columns for a table
-    static async getAddableColumns(req, res) {
-        try {
-            const { tableName } = req.params;
-            const currentUser = req.user; // From auth middleware
-            
-            const columns = await User.getAddableColumns(tableName, currentUser);
-            
-            res.json({
-                success: true,
-                data: {
-                    tableName,
-                    columns
-                },
-                message: 'Addable columns retrieved successfully'
-            });
-            
-        } catch (error) {
-            console.error('❌ Error in getAddableColumns controller:', error);
             res.status(500).json({
                 success: false,
                 error: error.message

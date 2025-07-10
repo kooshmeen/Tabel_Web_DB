@@ -199,6 +199,41 @@ class User {
         }
     }
 
+    // Get all column names for a specific table, including their data types and permissions
+    static async getTableColumns(tableName, currentUser) {
+        try {
+            console.log(`📊 Fetching columns for table: ${tableName}`);
+            
+            // Validate table name to prevent SQL injection
+            const validTablesQuery = `
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_name = $1
+            `;
+            const validTableResult = await pool.query(validTablesQuery, [tableName]);
+            
+            if (validTableResult.rows.length === 0) {
+                throw new Error('Table not found');
+            }
+            
+            // Get column information
+            const columnsQuery = `
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns 
+                WHERE table_name = $1 AND table_schema = 'public'
+                ORDER BY ordinal_position
+            `;
+            const columnsResult = await pool.query(columnsQuery, [tableName]);
+            const allColumns = columnsResult.rows;
+            
+            return allColumns;
+        }
+        catch (error) {
+            console.error('Error in getTableColumns model method:', error);
+            throw new Error('Error fetching table columns: ' + error.message);
+        }
+    }
+
     // Get data for a specific table with pagination
     static async getTableData(tableName, currentUser, page = 1, limit = 50) {
         try {
@@ -596,47 +631,6 @@ class User {
         } catch (error) {
             console.error('Error deleting table row:', error);
             throw new Error('Error deleting table row: ' + error.message);
-        }
-    }
-
-    // Get addable columns for a table
-    static async getAddableColumns(tableName, currentUser) {
-        try {
-            console.log(`📊 Fetching addable columns for table: ${tableName}`);
-            
-            // Validate table name to prevent SQL injection
-            const validTablesQuery = `
-                SELECT table_name 
-                FROM information_schema.tables 
-                WHERE table_schema = 'public' AND table_name = $1
-            `;
-            const validTableResult = await pool.query(validTablesQuery, [tableName]);
-            
-            if (validTableResult.rows.length === 0) {
-                throw new Error('Table not found');
-            }
-            
-            // Get table structure (columns)
-            const columnsQuery = `
-                SELECT column_name, data_type, is_nullable, column_default
-                FROM information_schema.columns 
-                WHERE table_name = $1 AND table_schema = 'public'
-                ORDER BY ordinal_position
-            `;
-            const columnsResult = await pool.query(columnsQuery, [tableName]);
-            const allColumns = columnsResult.rows;
-
-            // Filter columns based on permissions for adding
-            const { filterColumnsForAdd } = require('../config/columnPermissions');
-            const addableColumns = filterColumnsForAdd(allColumns, tableName, currentUser);
-            
-            console.log(`📊 Addable columns for ${tableName}:`, addableColumns.map(c => c.column_name));
-            
-            return addableColumns;
-            
-        } catch (error) {
-            console.error('Error in getAddableColumns model method:', error);
-            throw new Error('Error fetching addable columns: ' + error.message);
         }
     }
 }

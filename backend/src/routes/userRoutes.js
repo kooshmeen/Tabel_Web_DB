@@ -37,8 +37,8 @@ router.post('/login', authController.login);
 // GET /api/users/tables/:tableName - Get data from specific table (admin only)
 router.get('/tables/:tableName', authMiddleware, UserController.getTableData);
 
-// GET /api/users/tables/:tableName/columns/addable - Get addable columns for a table
-router.get('/tables/:tableName/columns/addable', authMiddleware, UserController.getAddableColumns);
+// GET /api/users/tables/:tableName/columns - Get columns for specific table
+router.get('/tables/:tableName/columns', authMiddleware, UserController.getTableColumns);
 
 // POST /api/users/tables/:tableName/rows - Create new row in specific table
 router.post('/tables/:tableName/rows', authMiddleware, UserController.addTableRow);

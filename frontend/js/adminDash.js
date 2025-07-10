@@ -183,6 +183,7 @@ async function loadDatabaseTables() {
     }
 }
 
+// region load table data
 // Function to load data from a specific table
 async function loadTableData(tableName) {
     console.log(`🔄 loadTableData called for table: ${tableName}`);
@@ -238,6 +239,7 @@ async function loadTableData(tableName) {
             
             // Store the data for sorting
             currentTableData = result.data;
+            currentTableData.tableName = tableName; // Store table name for reference
             
             // Reset sorting when loading new table
             currentSortColumn = null;
@@ -751,6 +753,7 @@ function setupTableControls() {
     }
 }
 
+//region show modal
 // Function to show the add entry modal
 async function showAddEntryModal() {
     const modal = document.getElementById('add-entry-modal');
@@ -758,123 +761,112 @@ async function showAddEntryModal() {
         console.error('❌ Add entry modal not found!');
         return;
     }
+
+    // Check if we have current table data
+    if (!currentTableData || !currentTableData.tableName) {
+        console.error('❌ No current table data available!');
+        alert('Please select a table first.');
+        return;
+    }
+
     modal.style.display = 'block';
 
     try {
-        // Get addable columns from the server
-        const tableName = currentTableData ? currentTableData.tableName : 'users';
-        const response = await fetch(`/api/users/tables/${tableName}/columns/addable`, {
+        // Populate modal with table columns for entry
+        const response2 = await fetch(`/api/users/tables/${currentTableData.tableName}/columns`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch addable columns: ${response.status}`);
+        if (!response2.ok) {
+            throw new Error(`Failed to fetch columns: ${response2.status}`);
         }
 
-        const result = await response.json();
-        console.log('🔍 Addable columns response:', result);
-        
-        const columns = result.data.columns || [];
-        
-        const modalBody = modal.querySelector('.modal-body');
-        if (!modalBody) {
-            console.error('❌ Modal body not found!');
-            return;
-        }
-        
-        modalBody.innerHTML = ''; // Clear previous content
+    const columnsResponse = await response2.json();
 
-        // Create form container
-        const form = document.createElement('form');
-        form.id = 'add-entry-form';
+    console.log('📡 Columns response for add entry:', columnsResponse);
 
-        columns.forEach(column => {
-            console.log('🔍 Processing addable column:', column.column_name);
-            
-            const formGroup = document.createElement('div');
-            formGroup.className = 'form-group';
-            
-            const label = document.createElement('label');
-            label.textContent = column.column_name;
-            
-            // Mark required fields
-            if (column.is_nullable === 'NO' && !column.column_default) {
-                label.innerHTML += ' <span style="color: red;">*</span>';
-            }
-            
-            formGroup.appendChild(label);
-            
-            const input = document.createElement('input');
-            input.className = 'form-control';
-            input.setAttribute('data-column', column.column_name);
-            input.setAttribute('data-table', tableName);
-            input.name = column.column_name;
-            
-            // Set input type based on data type
-            input.type = getInputType(column);
-            
-            // Set required attribute
-            if (column.is_nullable === 'NO' && !column.column_default) {
-                input.required = true;
-            }
-            
-            // Set placeholder with helpful information
-            let placeholder = `Enter ${column.column_name}`;
-            if (column.character_maximum_length) {
-                placeholder += ` (max ${column.character_maximum_length} chars)`;
-            }
-            input.placeholder = placeholder;
-            
-            formGroup.appendChild(input);
-            form.appendChild(formGroup);
-        });
+    // Extract columns array from response
+    const columns = columnsResponse.success ? columnsResponse.data : columnsResponse;
+    
+    if (!Array.isArray(columns)) {
+        console.error('❌ Columns is not an array:', columns);
+        alert('Error loading table columns. Please try again.');
+        modal.style.display = 'none';
+        return;
+    }
 
-        modalBody.appendChild(form);
+    // Get modal body
+    const modalBody = modal.querySelector('.modal-body');
+    if (!modalBody) {
+        console.error('❌ Modal body not found!');
+        return;
+    }
 
-        // Add button container
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'modal-buttons';
+    // Clear existing content
+    modalBody.innerHTML = '';
 
-        // Add save button
-        const saveButton = document.createElement('button');
-        saveButton.className = 'btn btn-primary';
-        saveButton.textContent = 'Save Entry';
-        saveButton.type = 'button';
-        saveButton.addEventListener('click', () => {
-            saveNewEntry(modal);
-        });
-        buttonContainer.appendChild(saveButton);
+    // Create form elements for each column
+    const form = document.createElement('form');
+    form.id = 'add-entry-form';
+    columns.forEach(column => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
 
-        // Add cancel button
-        const cancelButton = document.createElement('button');
-        cancelButton.className = 'btn btn-secondary';
-        cancelButton.textContent = 'Cancel';
-        cancelButton.type = 'button';
-        cancelButton.addEventListener('click', () => {
+        const label = document.createElement('label');
+        label.textContent = column.column_name;
+        formGroup.appendChild(label);
+
+        const input = document.createElement('input');
+        input.type = getInputType(column);
+        input.name = column.column_name;
+        formGroup.appendChild(input);
+
+        form.appendChild(formGroup);
+    });
+
+    modalBody.appendChild(form);
+
+    // Add button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'modal-buttons';
+
+    // Add save button
+    const saveButton = document.createElement('button');
+    saveButton.className = 'btn btn-primary';
+    saveButton.textContent = 'Save Entry';
+    saveButton.type = 'button';
+    saveButton.addEventListener('click', () => {
+        saveNewEntry(modal);
+    });
+    buttonContainer.appendChild(saveButton);
+
+    // Add cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.className = 'btn btn-secondary';
+    cancelButton.textContent = 'Cancel';
+    cancelButton.type = 'button';
+    cancelButton.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+    buttonContainer.appendChild(cancelButton);
+
+    modalBody.appendChild(buttonContainer);
+
+    // Setup close button functionality
+    const closeButton = modal.querySelector('.close');
+    if (closeButton) {
+        closeButton.onclick = () => {
             modal.style.display = 'none';
-        });
-        buttonContainer.appendChild(cancelButton);
+        };
+    }
 
-        modalBody.appendChild(buttonContainer);
-
-        // Setup close button functionality
-        const closeButton = modal.querySelector('.close');
-        if (closeButton) {
-            closeButton.onclick = () => {
-                modal.style.display = 'none';
-            };
-        }
-        
     } catch (error) {
-        console.error('❌ Error loading addable columns:', error);
-        const modalBody = modal.querySelector('.modal-body');
-        if (modalBody) {
-            modalBody.innerHTML = `<p style="color: red;">Error loading form: ${error.message}</p>`;
-        }
+        console.error('❌ Error loading modal:', error);
+        alert('Error loading form. Please try again.');
+        modal.style.display = 'none';
     }
 }
 
