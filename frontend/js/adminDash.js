@@ -684,6 +684,8 @@ function debounce(func, wait) {
 // Handle search functionality
 function handleSearch(event) {
     const searchTerm = event.target.value.toLowerCase();
+    const columnFilter = document.getElementById('column-filter');
+    const selectedColumn = columnFilter ? columnFilter.value : '';
     const tableBody = document.getElementById('table-data-tbody');
     const rows = tableBody.querySelectorAll('tr');
     
@@ -693,11 +695,42 @@ function handleSearch(event) {
         const cells = row.querySelectorAll('td');
         let matchFound = false;
         
-        cells.forEach(cell => {
-            if (cell.textContent.toLowerCase().includes(searchTerm)) {
-                matchFound = true;
+        if (selectedColumn) {
+            // Find the correct column index by matching with the table headers
+            const tableHead = document.getElementById('table-data-thead');
+            if (tableHead) {
+                const headerCells = tableHead.querySelectorAll('th');
+                let columnIndex = -1;
+                
+                // Find the index of the selected column in the table headers
+                headerCells.forEach((header, idx) => {
+                    const headerText = header.querySelector('span') ? 
+                        header.querySelector('span').textContent.trim() : 
+                        header.textContent.trim();
+                    
+                    if (headerText === selectedColumn) {
+                        columnIndex = idx;
+                    }
+                });
+                
+                // Check only the specific column if found
+                if (columnIndex !== -1 && columnIndex < cells.length - 1) { // -1 to exclude actions column
+                    const cell = cells[columnIndex];
+                    if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
+                        matchFound = true;
+                    }
+                }
             }
-        });
+        } else {
+            // If no column selected, search all columns except the actions column
+            for (let i = 0; i < cells.length - 1; i++) {
+                const cell = cells[i];
+                if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
+                    matchFound = true;
+                    break;
+                }
+            }
+        }
         
         if (matchFound) {
             row.style.display = '';
@@ -710,7 +743,7 @@ function handleSearch(event) {
     // Update counter for filtered results
     const counterElement = document.getElementById('entry-counter');
     if (counterElement) {
-        if (searchTerm) {
+        if (searchTerm || selectedColumn) {
             counterElement.textContent = `Showing ${visibleCount} of ${rows.length} entries (filtered)`;
         } else {
             counterElement.textContent = `Showing ${rows.length} entries`;
@@ -965,21 +998,42 @@ function handleColumnFilter(event) {
         const cells = row.querySelectorAll('td');
         let matchFound = false;
 
-        cells.forEach((cell, idx) => {
-            // Only filter by the selected column if one is chosen
-            if (selectedColumn) {
-                const columnFilter = document.getElementById('column-filter');
-                const columnIndex = Array.from(columnFilter.options).findIndex(opt => opt.value === selectedColumn);
-                if (idx === columnIndex && cell.textContent.toLowerCase().includes(searchTerm)) {
-                    matchFound = true;
-                }
-            } else {
-                // If no column selected, search all columns
-                if (cell.textContent.toLowerCase().includes(searchTerm)) {
-                    matchFound = true;
+        if (selectedColumn) {
+            // Find the correct column index by matching with the table headers
+            const tableHead = document.getElementById('table-data-thead');
+            if (tableHead) {
+                const headerCells = tableHead.querySelectorAll('th');
+                let columnIndex = -1;
+                
+                // Find the index of the selected column in the table headers
+                headerCells.forEach((header, idx) => {
+                    const headerText = header.querySelector('span') ? 
+                        header.querySelector('span').textContent.trim() : 
+                        header.textContent.trim();
+                    
+                    if (headerText === selectedColumn) {
+                        columnIndex = idx;
+                    }
+                });
+                
+                // Check only the specific column if found
+                if (columnIndex !== -1 && columnIndex < cells.length - 1) { // -1 to exclude actions column
+                    const cell = cells[columnIndex];
+                    if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
+                        matchFound = true;
+                    }
                 }
             }
-        });
+        } else {
+            // If no column selected, search all columns except the actions column
+            for (let i = 0; i < cells.length - 1; i++) {
+                const cell = cells[i];
+                if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
+                    matchFound = true;
+                    break;
+                }
+            }
+        }
 
         if (matchFound) {
             row.style.display = '';
