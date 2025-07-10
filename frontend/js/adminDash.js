@@ -3,8 +3,38 @@ let currentSortColumn = null;
 let currentSortDirection = 'asc';
 let currentTableData = null; // Store the current table data for sorting
 
+// Theme management
+function initializeTheme() {
+    // Check for saved theme preference or default to light mode
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    
+    // Update the theme toggle button
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+    }
+    
+    console.log(`🎨 Theme changed to: ${theme}`);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    applyTheme(newTheme);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin Dashboard loading...');
+    
+    // Initialize theme first
+    initializeTheme();
     
     const storedUser = localStorage.getItem('user');
     console.log('🔍 Stored user:', storedUser);
@@ -1167,3 +1197,15 @@ async function saveNewEntry(modal) {
         }
     }
 }
+
+// Initialize theme toggle when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Add theme toggle event listener if not already added
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle && !themeToggle.hasAttribute('data-theme-listener')) {
+        themeToggle.addEventListener('click', function() {
+            toggleTheme();
+        });
+        themeToggle.setAttribute('data-theme-listener', 'true');
+    }
+});
