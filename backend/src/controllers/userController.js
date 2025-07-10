@@ -43,6 +43,32 @@ class UserController {
             });
         }
     }
+
+    // Get addable columns for a table
+    static async getAddableColumns(req, res) {
+        try {
+            const { tableName } = req.params;
+            const currentUser = req.user; // From auth middleware
+            
+            const columns = await User.getAddableColumns(tableName, currentUser);
+            
+            res.json({
+                success: true,
+                data: {
+                    tableName,
+                    columns
+                },
+                message: 'Addable columns retrieved successfully'
+            });
+            
+        } catch (error) {
+            console.error('❌ Error in getAddableColumns controller:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
     
     // GET /api/users - Listează toți utilizatorii
     static async getAllUsers(req, res) {
@@ -241,6 +267,45 @@ class UserController {
             });
         } catch (error) {
             res.status(401).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    // POST /api/users/tables/:tableName/rows - Create new row in specific table
+    static async addTableRow(req, res) {
+        try {
+            const { tableName } = req.params;
+            const rowData = req.body;
+            const currentUser = req.user;
+            
+            console.log(`🆕 Adding new row to table ${tableName}:`, rowData);
+            
+            // Validate that user has permission to add data
+            if (currentUser.role !== 'admin') {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Insufficient permissions to add data'
+                });
+            }
+            
+            // Special validation for users table - only admins can create users
+            if (tableName === 'users') {
+                console.log('🔐 Creating new user - admin access confirmed');
+            }
+            
+            const result = await User.addTableRow(tableName, rowData, currentUser);
+            
+            res.status(201).json({
+                success: true,
+                data: result,
+                message: 'Row added successfully'
+            });
+            
+        } catch (error) {
+            console.error('❌ Error in addTableRow controller:', error);
+            res.status(400).json({
                 success: false,
                 error: error.message
             });

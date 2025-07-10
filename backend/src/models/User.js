@@ -285,6 +285,200 @@ class User {
         }
     }
 
+    // Add a new row to a specific table
+    static async addTableRow(tableName, rowData, currentUser) {
+        try {
+            // Validate table name
+            const validTablesQuery = `
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_name = $1
+            `;
+            const validTableResult = await pool.query(validTablesQuery, [tableName]);
+            
+            if (validTableResult.rows.length === 0) {
+                throw new Error('Table not found');
+            }
+            
+            // Get table columns information
+            const columnsQuery = `
+                SELECT column_name, data_type, is_nullable, column_default, 
+                       character_maximum_length, numeric_precision, numeric_scale
+                FROM information_schema.columns 
+                WHERE table_name = $1 AND table_schema = 'public'
+                ORDER BY ordinal_position
+            `;
+            const columnsResult = await pool.query(columnsQuery, [tableName]);
+            const allColumns = columnsResult.rows;
+            
+            // Filter columns that can be edited for new entries
+            const { filterColumnsForAdd } = require('../config/columnPermissions');
+            const addableColumns = filterColumnsForAdd(allColumns, tableName, currentUser);
+            
+            // Validate required fields (but exclude columns with defaults)
+            const requiredColumns = allColumns.filter(col => 
+                col.is_nullable === 'NO' && 
+                (col.column_default === null || col.column_default === '') &&
+                col.column_name !== 'id' // Skip auto-increment ID
+            );
+            
+            console.log('🔍 All columns for', tableName, ':', allColumns.map(c => ({
+                name: c.column_name,
+                nullable: c.is_nullable,
+                default: c.column_default
+            })));
+            console.log('🔍 Required columns for', tableName, ':', requiredColumns.map(c => c.column_name));
+            console.log('🔍 Received data keys:', Object.keys(rowData));
+            console.log('🔍 Received data values:', rowData);
+            
+            for (const requiredCol of requiredColumns) {
+                const columnName = requiredCol.column_name;
+                const value = rowData[columnName];
+                
+                console.log(`🔍 Checking required field '${columnName}':`, value, 'Type:', typeof value);
+                
+                if (!rowData.hasOwnProperty(columnName) || 
+                    value === null || 
+                    value === undefined || 
+                    String(value).trim() === '') {
+                    console.log(`❌ Missing required field: ${columnName}`);
+                    throw new Error(`Field '${columnName}' is required`);
+                }
+            }
+            
+            // Validate data types and permissions
+            const validatedData = {};
+            const insertColumns = [];
+            const insertValues = [];
+            const insertPlaceholders = [];
+            
+            for (const [columnName, value] of Object.entries(rowData)) {
+                // Find column info
+                const columnInfo = allColumns.find(col => col.column_name === columnName);
+                if (!columnInfo) {
+                    console.warn(`Warning: Column '${columnName}' not found in table schema`);
+                    continue;
+                }
+                
+                // Check if column can be added
+                const canAdd = addableColumns.some(col => col.column_name === columnName);
+                if (!canAdd) {
+                    console.warn(`Warning: Column '${columnName}' is not addable for new entries`);
+                    continue;
+                }
+                
+                // Special handling for password hashing in users table
+                let validatedValue = value;
+                if (tableName === 'users' && columnName === 'password') {
+                    if (value && value.trim() !== '') {
+                        console.log('🔐 Hashing password for new user');
+                        validatedValue = await bcrypt.hash(value.trim(), 10);
+                    }
+                } else {
+                    // Validate and convert data types
+                    validatedValue = value;
+                }
+                
+                if (validatedValue !== null && validatedValue !== '' && validatedValue !== undefined) {
+                    // Skip data type validation for hashed passwords
+                    if (!(tableName === 'users' && columnName === 'password')) {
+                        switch (columnInfo.data_type.toLowerCase()) {
+                            case 'integer':
+                            case 'bigint':
+                            case 'smallint':
+                                validatedValue = parseInt(validatedValue);
+                                if (isNaN(validatedValue)) {
+                                    throw new Error(`Invalid integer value for '${columnName}': ${value}`);
+                                }
+                                break;
+                                
+                            case 'numeric':
+                            case 'decimal':
+                            case 'real':
+                            case 'double precision':
+                                validatedValue = parseFloat(validatedValue);
+                                if (isNaN(validatedValue)) {
+                                    throw new Error(`Invalid numeric value for '${columnName}': ${value}`);
+                                }
+                                break;
+                                
+                            case 'boolean':
+                                if (typeof validatedValue === 'string') {
+                                    validatedValue = validatedValue.toLowerCase() === 'true' || validatedValue === '1';
+                                } else {
+                                    validatedValue = Boolean(validatedValue);
+                                }
+                                break;
+                                
+                            case 'date':
+                                const dateValue = new Date(validatedValue);
+                                if (isNaN(dateValue.getTime())) {
+                                    throw new Error(`Invalid date value for '${columnName}': ${value}`);
+                                }
+                                validatedValue = validatedValue; // Keep as string for SQL
+                                break;
+                                
+                            case 'timestamp':
+                            case 'timestamp with time zone':
+                            case 'timestamp without time zone':
+                                const timestampValue = new Date(validatedValue);
+                                if (isNaN(timestampValue.getTime())) {
+                                    throw new Error(`Invalid timestamp value for '${columnName}': ${value}`);
+                                }
+                                validatedValue = validatedValue; // Keep as string for SQL
+                                break;
+                                
+                            case 'character varying':
+                            case 'varchar':
+                            case 'text':
+                                validatedValue = String(validatedValue);
+                                if (columnInfo.character_maximum_length && 
+                                    validatedValue.length > columnInfo.character_maximum_length) {
+                                    throw new Error(`Value too long for '${columnName}'. Maximum length: ${columnInfo.character_maximum_length}`);
+                                }
+                                break;
+                                
+                            default:
+                                validatedValue = String(validatedValue);
+                        }
+                    }
+                }
+                
+                validatedData[columnName] = validatedValue;
+                insertColumns.push(columnName);
+                insertValues.push(validatedValue);
+                insertPlaceholders.push(`$${insertValues.length}`);
+            }
+            
+            if (insertColumns.length === 0) {
+                throw new Error('No valid data provided for insertion');
+            }
+            
+            // Build and execute INSERT query
+            const insertQuery = `
+                INSERT INTO ${tableName} (${insertColumns.join(', ')})
+                VALUES (${insertPlaceholders.join(', ')})
+                RETURNING *
+            `;
+            
+            console.log('🔍 Executing insert query:', insertQuery);
+            console.log('🔍 With values:', insertValues);
+            
+            const result = await pool.query(insertQuery, insertValues);
+            const newRow = result.rows[0];
+            
+            return {
+                id: newRow.id,
+                data: newRow,
+                message: 'Row added successfully'
+            };
+            
+        } catch (error) {
+            console.error('❌ Error in addTableRow model method:', error);
+            throw new Error('Error adding row: ' + error.message);
+        }
+    }
+
     // Update a specific row in a table
     static async updateTableRow(tableName, rowId, updates, currentUser) {
         try {
@@ -402,6 +596,47 @@ class User {
         } catch (error) {
             console.error('Error deleting table row:', error);
             throw new Error('Error deleting table row: ' + error.message);
+        }
+    }
+
+    // Get addable columns for a table
+    static async getAddableColumns(tableName, currentUser) {
+        try {
+            console.log(`📊 Fetching addable columns for table: ${tableName}`);
+            
+            // Validate table name to prevent SQL injection
+            const validTablesQuery = `
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_name = $1
+            `;
+            const validTableResult = await pool.query(validTablesQuery, [tableName]);
+            
+            if (validTableResult.rows.length === 0) {
+                throw new Error('Table not found');
+            }
+            
+            // Get table structure (columns)
+            const columnsQuery = `
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns 
+                WHERE table_name = $1 AND table_schema = 'public'
+                ORDER BY ordinal_position
+            `;
+            const columnsResult = await pool.query(columnsQuery, [tableName]);
+            const allColumns = columnsResult.rows;
+
+            // Filter columns based on permissions for adding
+            const { filterColumnsForAdd } = require('../config/columnPermissions');
+            const addableColumns = filterColumnsForAdd(allColumns, tableName, currentUser);
+            
+            console.log(`📊 Addable columns for ${tableName}:`, addableColumns.map(c => c.column_name));
+            
+            return addableColumns;
+            
+        } catch (error) {
+            console.error('Error in getAddableColumns model method:', error);
+            throw new Error('Error fetching addable columns: ' + error.message);
         }
     }
 }

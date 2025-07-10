@@ -1,6 +1,6 @@
 -- reset
 
-DROP TABLE IF EXISTS users;
+-- DROP TABLE IF EXISTS users;
 
 -- Creează tabelul pentru utilizatori
 CREATE TABLE IF NOT EXISTS users (
@@ -25,4 +25,4 @@ WHERE table_name = 'users';
 SELECT * FROM users;
 
 -- Remove a user by ID
-DELETE FROM users WHERE id = 2;
+-- DELETE FROM users WHERE id = 2;

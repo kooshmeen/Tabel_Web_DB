@@ -746,10 +746,177 @@ function setupTableControls() {
     if (addEntryBtn) {
         addEntryBtn.addEventListener('click', () => {
             // Implement add entry functionality
-            console.log('Add entry functionality to be implemented');
+            showAddEntryModal();
         });
     }
 }
+
+// Function to show the add entry modal
+async function showAddEntryModal() {
+    const modal = document.getElementById('add-entry-modal');
+    if (!modal) {
+        console.error('❌ Add entry modal not found!');
+        return;
+    }
+    modal.style.display = 'block';
+
+    try {
+        // Get addable columns from the server
+        const tableName = currentTableData ? currentTableData.tableName : 'users';
+        const response = await fetch(`/api/users/tables/${tableName}/columns/addable`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch addable columns: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('🔍 Addable columns response:', result);
+        
+        const columns = result.data.columns || [];
+        
+        const modalBody = modal.querySelector('.modal-body');
+        if (!modalBody) {
+            console.error('❌ Modal body not found!');
+            return;
+        }
+        
+        modalBody.innerHTML = ''; // Clear previous content
+
+        // Create form container
+        const form = document.createElement('form');
+        form.id = 'add-entry-form';
+
+        columns.forEach(column => {
+            console.log('🔍 Processing addable column:', column.column_name);
+            
+            const formGroup = document.createElement('div');
+            formGroup.className = 'form-group';
+            
+            const label = document.createElement('label');
+            label.textContent = column.column_name;
+            
+            // Mark required fields
+            if (column.is_nullable === 'NO' && !column.column_default) {
+                label.innerHTML += ' <span style="color: red;">*</span>';
+            }
+            
+            formGroup.appendChild(label);
+            
+            const input = document.createElement('input');
+            input.className = 'form-control';
+            input.setAttribute('data-column', column.column_name);
+            input.setAttribute('data-table', tableName);
+            input.name = column.column_name;
+            
+            // Set input type based on data type
+            input.type = getInputType(column);
+            
+            // Set required attribute
+            if (column.is_nullable === 'NO' && !column.column_default) {
+                input.required = true;
+            }
+            
+            // Set placeholder with helpful information
+            let placeholder = `Enter ${column.column_name}`;
+            if (column.character_maximum_length) {
+                placeholder += ` (max ${column.character_maximum_length} chars)`;
+            }
+            input.placeholder = placeholder;
+            
+            formGroup.appendChild(input);
+            form.appendChild(formGroup);
+        });
+
+        modalBody.appendChild(form);
+
+        // Add button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'modal-buttons';
+
+        // Add save button
+        const saveButton = document.createElement('button');
+        saveButton.className = 'btn btn-primary';
+        saveButton.textContent = 'Save Entry';
+        saveButton.type = 'button';
+        saveButton.addEventListener('click', () => {
+            saveNewEntry(modal);
+        });
+        buttonContainer.appendChild(saveButton);
+
+        // Add cancel button
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'btn btn-secondary';
+        cancelButton.textContent = 'Cancel';
+        cancelButton.type = 'button';
+        cancelButton.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        buttonContainer.appendChild(cancelButton);
+
+        modalBody.appendChild(buttonContainer);
+
+        // Setup close button functionality
+        const closeButton = modal.querySelector('.close');
+        if (closeButton) {
+            closeButton.onclick = () => {
+                modal.style.display = 'none';
+            };
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading addable columns:', error);
+        const modalBody = modal.querySelector('.modal-body');
+        if (modalBody) {
+            modalBody.innerHTML = `<p style="color: red;">Error loading form: ${error.message}</p>`;
+        }
+    }
+}
+
+// Helper function to determine input type based on column data type
+function getInputType(column) {
+    if (!column.data_type) return 'text';
+    
+    const dataType = column.data_type.toLowerCase();
+    const columnName = column.column_name.toLowerCase();
+    
+    // Special cases based on column name
+    if (columnName === 'password') {
+        return 'password';
+    } else if (columnName.includes('email')) {
+        return 'email';
+    } else if (columnName.includes('url') || columnName.includes('website')) {
+        return 'url';
+    }
+    
+    // Cases based on data type
+    if (dataType.includes('int') || dataType.includes('serial')) {
+        return 'number';
+    } else if (dataType.includes('numeric') || dataType.includes('decimal') || dataType.includes('real') || dataType.includes('double')) {
+        return 'number';
+    } else if (dataType.includes('boolean')) {
+        return 'checkbox';
+    } else if (dataType === 'date') {
+        return 'date';
+    } else if (dataType.includes('time')) {
+        return 'datetime-local';
+    } else {
+        return 'text';
+    }
+}
+
+// Close modal when clicking outside of it
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('add-entry-modal');
+    if (modal && event.target === modal) {
+        modal.style.display = 'none';
+    }
+});
 
 // Update your setupEventListeners function
 function setupEventListeners() {
@@ -822,6 +989,120 @@ function handleColumnFilter(event) {
             counterElement.textContent = `Showing ${visibleCount} of ${rows.length} entries (filtered)`;
         } else {
             counterElement.textContent = `Showing ${rows.length} entries`;
+        }
+    }
+}
+
+// Function to save new entry to database
+async function saveNewEntry(modal) {
+    try {
+        const form = modal.querySelector('#add-entry-form');
+        if (!form) {
+            console.error('❌ Form not found!');
+            alert('Form not found. Please try again.');
+            return;
+        }
+
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const entryData = {};
+        
+        // Collect form data
+        for (const [key, value] of formData.entries()) {
+            // Always include all form fields, even empty ones for debugging
+            entryData[key] = value;
+        }
+        
+        console.log('🔍 All form data collected:', entryData);
+        
+        // Remove empty values after logging, but keep required fields
+        const cleanedData = {};
+        for (const [key, value] of Object.entries(entryData)) {
+            const trimmedValue = value.trim();
+            
+            // Always include required fields, even if empty (for better error messages)
+            // or include non-empty values
+            if (trimmedValue !== '' || (currentTableData.tableName === 'users' && ['name', 'email', 'password'].includes(key))) {
+                cleanedData[key] = trimmedValue;
+            }
+        }
+        
+        console.log('🔍 Cleaned data to send:', cleanedData);
+        
+        // Get table name
+        const tableName = currentTableData.tableName;
+        
+        if (Object.keys(cleanedData).length === 0) {
+            alert('Please fill in at least one field.');
+            return;
+        }
+        
+        // Show loading state
+        const saveButton = modal.querySelector('.btn-primary');
+        const originalText = saveButton.textContent;
+        saveButton.textContent = 'Saving...';
+        saveButton.disabled = true;
+        
+        console.log('🔄 Submitting data to:', `/api/users/tables/${tableName}/rows`);
+        console.log('🔄 Final payload:', cleanedData);
+        
+        // Make API request
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/users/tables/${tableName}/rows`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(cleanedData)
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || `HTTP ${response.status}: Failed to add entry`);
+        }
+        
+        console.log('✅ Entry added successfully:', result);
+        
+        // Close modal
+        modal.style.display = 'none';
+        
+        // Refresh table data
+        if (currentTableData && currentTableData.tableName) {
+            await loadTableData(currentTableData.tableName);
+        }
+        
+        // Show success message
+        alert('Entry added successfully!');
+        
+    } catch (error) {
+        console.error('❌ Error saving entry:', error);
+        
+        // Show user-friendly error message
+        let errorMessage = 'Error saving entry: ';
+        if (error.message.includes('required')) {
+            errorMessage += 'Please fill in all required fields.';
+        } else if (error.message.includes('Invalid')) {
+            errorMessage += 'Please check your data format.';
+        } else if (error.message.includes('too long')) {
+            errorMessage += 'One or more fields exceed the maximum length.';
+        } else {
+            errorMessage += error.message;
+        }
+        
+        alert(errorMessage);
+        
+        // Restore button state
+        const saveButton = modal.querySelector('.btn-primary');
+        if (saveButton) {
+            saveButton.textContent = 'Save Entry';
+            saveButton.disabled = false;
         }
     }
 }
