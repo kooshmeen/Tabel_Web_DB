@@ -805,13 +805,27 @@ async function showAddEntryModal() {
         return;
     }
 
+
+    console.log('📋 Columns to display in modal:', columns);
+
+    // Remove is_nullable and id columns
+
+    const filteredColumns = columns.filter(column =>
+        column.is_nullable !== 'YES' &&
+        column.column_name.toLowerCase() !== 'id'
+    );
+
+    console.log('📋 Filtered columns for modal:', filteredColumns);
+
+
+
     // Clear existing content
     modalBody.innerHTML = '';
 
     // Create form elements for each column
     const form = document.createElement('form');
     form.id = 'add-entry-form';
-    columns.forEach(column => {
+    filteredColumns.forEach(column => {
         const formGroup = document.createElement('div');
         formGroup.className = 'form-group';
 
@@ -822,6 +836,7 @@ async function showAddEntryModal() {
         const input = document.createElement('input');
         input.type = getInputType(column);
         input.name = column.column_name;
+        input.className = 'form-control';
         formGroup.appendChild(input);
 
         form.appendChild(formGroup);
