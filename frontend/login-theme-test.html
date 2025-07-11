@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Theme Test</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Theme toggle button -->
+        <div class="dark-mode-toggle">
+            <button id="theme-toggle" class="btn btn-theme" title="Toggle Dark Mode">🌙</button>
+        </div>
+        
+        <h2>Login Form Test</h2>
+        
+        <form id="login-section">
+            <div class="form-group">
+                <label for="login-email">Email:</label>
+                <input type="email" id="login-email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password:</label>
+                <input type="password" id="login-password" name="password" required>
+            </div>
+        </form>
+        
+        <button id="login-button">Login</button>
+        
+        <div id="login-error" class="error-message" style="display: none;">Error message</div>
+        <div id="login-success" class="success-message" style="display: none;">Success message</div>
+        
+        <div class="register-link">
+            <p>Don't have an account? <a href="register.html">Register here</a></p>
+        </div>
+    </div>
+    
+    <script>
+        // Theme management functions
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            applyTheme(savedTheme);
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+                themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+            }
+            
+            console.log(`🎨 Theme changed to: ${theme}`);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(newTheme);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTheme();
+            
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function() {
+                    toggleTheme();
+                });
+            }
+            
+            // Test button functionality
+            const loginButton = document.getElementById('login-button');
+            const errorDiv = document.getElementById('login-error');
+            const successDiv = document.getElementById('login-success');
+            
+            loginButton.addEventListener('click', function() {
+                // Toggle between showing error and success messages for testing
+                if (errorDiv.style.display === 'none') {
+                    errorDiv.style.display = 'block';
+                    successDiv.style.display = 'none';
+                } else {
+                    errorDiv.style.display = 'none';
+                    successDiv.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
