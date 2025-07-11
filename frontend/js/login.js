@@ -2,7 +2,15 @@
 function initializeTheme() {
     // Check for saved theme preference or default to light mode
     const savedTheme = localStorage.getItem('theme') || 'light';
+    
+    // Apply theme immediately without transition to prevent flash
+    document.documentElement.style.transition = 'none';
     applyTheme(savedTheme);
+    
+    // Re-enable transitions after a short delay
+    setTimeout(() => {
+        document.documentElement.style.transition = '';
+    }, 50);
 }
 
 function applyTheme(theme) {

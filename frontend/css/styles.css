@@ -36,6 +36,12 @@
     --modal-backdrop: rgba(0, 0, 0, 0.8);
 }
 
+/* Prevent flash of unstyled content */
+html {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
 * {
     margin: 0;
     padding: 0;

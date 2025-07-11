@@ -6,6 +6,37 @@
     <title>User Management</title>
     <link rel="icon" href="images/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="css/dashboardStyle.css">
+    
+    <!-- Critical CSS to prevent flash of unstyled content -->
+    <style>
+        /* Initialize theme before page loads */
+        html {
+            background-color: #f4f4f4;
+            color: #333333;
+        }
+        
+        html[data-theme="dark"] {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        body {
+            background-color: inherit;
+            color: inherit;
+            margin: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+    </style>
+    
+    <!-- Initialize theme before page renders -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="container">
