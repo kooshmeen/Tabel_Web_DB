@@ -1,8 +1,84 @@
-/* Just enough to make it usable */
+:root {
+    /* Light theme colors */
+    --bg-primary: #f4f4f4;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f8f9fa;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-muted: #999999;
+    --border-color: #ddd;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --accent-primary: #3498db;
+    --accent-secondary: #e74c3c;
+    --accent-success: #27ae60;
+    --accent-warning: #f39c12;
+    --table-header-bg: #f8f9fa;
+    --table-row-hover: #f5f5f5;
+    --modal-backdrop: rgba(0, 0, 0, 0.5);
+}
+
+/* Dark theme colors */
+[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3a3a3a;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --text-muted: #888888;
+    --border-color: #444444;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --accent-primary: #4a9eff;
+    --accent-secondary: #ff6b6b;
+    --accent-success: #51cf85;
+    --accent-warning: #ffd93d;
+    --table-header-bg: #3a3a3a;
+    --table-row-hover: #404040;
+    --modal-backdrop: rgba(0, 0, 0, 0.8);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+body[data-theme="dark"] {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.dark-mode-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+}
+
+.btn-theme {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 16px;
+    cursor: pointer;
+    min-width: 45px;
+    transition: all 0.3s ease;
+}
+
+.btn-theme:hover {
+    background: var(--bg-tertiary);
+    transform: scale(1.05);
+}
+
 .container {
     max-width: 400px;
     margin: 100px auto;
     padding: 50px;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow-color);
+    border: 1px solid var(--border-color);
 }
 
 .form-group {
@@ -11,28 +87,138 @@
 
 body {
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    padding:20px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 20px;
 }
 
-label {
+.form-group label {
     display: block;
     margin-bottom: 5px;
+    color: var(--text-primary);
+    font-weight: bold;
 }
 
-input {
+.form-group input, 
+.form-group select {
     width: 100%;
     padding: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: border-color 0.3s ease;
 }
 
-button {
+.form-group input:focus, 
+.form-group select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+}
+
+.form-group input:disabled {
+    background-color: var(--bg-tertiary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+button[type="submit"], 
+#login-button {
     width: 100%;
-    padding: 10px;
-    background-color: #007bff;
+    padding: 12px;
+    background-color: var(--accent-primary);
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+button[type="submit"]:hover, 
+#login-button:hover {
+    background-color: #2980b9;
+}
+
+button[type="submit"]:disabled, 
+#login-button:disabled {
+    background-color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* Additional styles for better dark mode support */
+.helper-text {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+h2 {
+    color: var(--text-primary);
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.register-link, 
+.form-footer {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.register-link p, 
+.form-footer p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.register-link a, 
+.form-footer a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.register-link a:hover, 
+.form-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Message styles */
+.error-message {
+    background-color: #ff6b6b;
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.success-message {
+    background-color: var(--accent-success);
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* Ensure compatibility with all input types */
+input, select, textarea {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--accent-primary);
+}
+
+/* Legacy label support */
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-primary);
+    font-weight: bold;
 }
