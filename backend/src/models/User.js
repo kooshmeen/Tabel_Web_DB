@@ -635,6 +635,162 @@ class User {
     }
     // region JOIN
 
+    // Get joined table data (left join)
+    static async getJoinedTableData(tableNames, currentUser, page = 1, limit = 50) {
+        try {
+            console.log(`📊 Performing join operation on tables: ${tableNames.join(', ')}`);
+            
+            if (!Array.isArray(tableNames) || tableNames.length < 2) {
+                throw new Error('At least 2 tables are required for join operation');
+            }
+            
+            // Validate all table names
+            const validTablesQuery = `
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_name = ANY($1)
+            `;
+            const validTableResult = await pool.query(validTablesQuery, [tableNames]);
+            
+            if (validTableResult.rows.length !== tableNames.length) {
+                const foundTables = validTableResult.rows.map(row => row.table_name);
+                const missingTables = tableNames.filter(name => !foundTables.includes(name));
+                throw new Error(`Tables not found: ${missingTables.join(', ')}`);
+            }
+            
+            // Get column information for all tables
+            const allTableColumns = {};
+            const joinColumns = [];
+            
+            for (const tableName of tableNames) {
+                const columnsQuery = `
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns 
+                    WHERE table_name = $1 AND table_schema = 'public'
+                    ORDER BY ordinal_position
+                `;
+                const columnsResult = await pool.query(columnsQuery, [tableName]);
+                allTableColumns[tableName] = columnsResult.rows;
+                
+                // Filter columns for display
+                const filteredColumns = filterColumnsForDisplay(columnsResult.rows, tableName, currentUser);
+                
+                // Add table prefix to column names to avoid conflicts
+                filteredColumns.forEach(col => {
+                    joinColumns.push({
+                        ...col,
+                        table_name: tableName,
+                        display_name: `${tableName}.${col.column_name}`,
+                        column_name: col.column_name,
+                        original_name: col.column_name
+                    });
+                });
+            }
+            
+            // Build the JOIN query
+            const primaryTable = tableNames[0];
+            let joinQuery = `SELECT `;
+            
+            // Build SELECT clause with table prefixes
+            const selectColumns = joinColumns.map(col => 
+                `${col.table_name}.${col.original_name} AS "${col.display_name}"`
+            ).join(', ');
+            
+            joinQuery += selectColumns;
+            joinQuery += ` FROM ${primaryTable}`;
+            
+            // Add LEFT JOINs for other tables
+            // We'll use 'id' as the default join column (most common primary key)
+            for (let i = 1; i < tableNames.length; i++) {
+                const tableName = tableNames[i];
+                
+                // Check if both tables have an 'id' column for joining
+                const primaryHasId = allTableColumns[primaryTable].some(col => col.column_name === 'id');
+                const currentHasId = allTableColumns[tableName].some(col => col.column_name === 'id');
+                
+                if (primaryHasId && currentHasId) {
+                    joinQuery += ` LEFT JOIN ${tableName} ON ${primaryTable}.id = ${tableName}.id`;
+                } else {
+                    // If no common 'id' column, try to find a common column name
+                    const primaryColumns = allTableColumns[primaryTable].map(col => col.column_name);
+                    const currentColumns = allTableColumns[tableName].map(col => col.column_name);
+                    const commonColumn = primaryColumns.find(col => currentColumns.includes(col));
+                    
+                    if (commonColumn) {
+                        joinQuery += ` LEFT JOIN ${tableName} ON ${primaryTable}.${commonColumn} = ${tableName}.${commonColumn}`;
+                    } else {
+                        // As a fallback, use a cross join (cartesian product) - not ideal but functional
+                        joinQuery += ` CROSS JOIN ${tableName}`;
+                        console.warn(`⚠️ No common column found between ${primaryTable} and ${tableName}, using CROSS JOIN`);
+                    }
+                }
+            }
+            
+            // Add pagination
+            const offset = (page - 1) * limit;
+            const countQuery = `SELECT COUNT(*) as total FROM (${joinQuery}) as joined_data`;
+            const finalQuery = `${joinQuery} LIMIT $1 OFFSET $2`;
+            
+            console.log('🔍 Join query:', finalQuery);
+            console.log('🔍 Count query:', countQuery);
+            
+            // Execute count query
+            const countResult = await pool.query(countQuery);
+            const total = parseInt(countResult.rows[0].total);
+            
+            // Execute main query
+            const dataResult = await pool.query(finalQuery, [limit, offset]);
+            
+            return {
+                tableNames,
+                joinType: 'LEFT JOIN',
+                columns: joinColumns,
+                rows: dataResult.rows,
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            };
+            
+        } catch (error) {
+            console.error('❌ Error in getJoinedTableData:', error);
+            throw new Error('Error performing join operation: ' + error.message);
+        }
+    }
+
+    // Get table relationships (foreign keys) - for smarter joins
+    static async getTableRelationships() {
+        try {
+            console.log('📊 Fetching table relationships...');
+            
+            const relationshipsQuery = `
+                SELECT 
+                    tc.table_name as source_table,
+                    kcu.column_name as source_column,
+                    ccu.table_name as target_table,
+                    ccu.column_name as target_column,
+                    tc.constraint_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu 
+                    ON tc.constraint_name = kcu.constraint_name
+                JOIN information_schema.constraint_column_usage ccu 
+                    ON ccu.constraint_name = tc.constraint_name
+                WHERE tc.constraint_type = 'FOREIGN KEY'
+                    AND tc.table_schema = 'public'
+                ORDER BY tc.table_name, kcu.column_name;
+            `;
+            
+            const result = await pool.query(relationshipsQuery);
+            return result.rows;
+            
+        } catch (error) {
+            console.error('❌ Error in getTableRelationships:', error);
+            throw new Error('Error fetching table relationships: ' + error.message);
+        }
+    }
+
 }
 
 module.exports = User;

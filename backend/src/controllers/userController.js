@@ -367,6 +367,57 @@ class UserController {
         }
     }
 
+    // POST /api/users/tables/join - Get joined table data
+    static async getJoinedTableData(req, res) {
+        try {
+            const { tableNames } = req.body;
+            const { page = 1, limit = 50 } = req.query;
+            const currentUser = req.user; // From auth middleware
+            
+            if (!Array.isArray(tableNames) || tableNames.length < 2) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'At least 2 table names are required for join operation'
+                });
+            }
+            
+            const joinedData = await User.getJoinedTableData(tableNames, currentUser, page, limit);
+            
+            res.json({
+                success: true,
+                data: joinedData,
+                message: 'Joined table data retrieved successfully'
+            });
+            
+        } catch (error) {
+            console.error('❌ Error in getJoinedTableData controller:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    // GET /api/users/tables/relationships - Get table relationships
+    static async getTableRelationships(req, res) {
+        try {
+            const relationships = await User.getTableRelationships();
+            
+            res.json({
+                success: true,
+                data: relationships,
+                message: 'Table relationships retrieved successfully'
+            });
+            
+        } catch (error) {
+            console.error('❌ Error in getTableRelationships controller:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
     
 }
 

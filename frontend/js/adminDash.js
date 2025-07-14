@@ -143,6 +143,8 @@ function setupEventListeners() {
     // Setup table controls
     setupTableControls();
     
+    // Setup join functionality
+    setupJoinFunctionality();
 }
 
 // The main function to load tables
@@ -205,16 +207,24 @@ async function loadDatabaseTables() {
             result.data.forEach((table, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="table-checkbox" value="${table.name}" 
+                               data-table-name="${table.name}">
+                    </td>
                     <td>${table.name}</td>
                     <td>${table.schema || 'public'}</td>
                     <td>${table.rowCount || 0}</td>
                     <td>${table.columnCount || 0}</td>
                     <td>
-                        <button class="btn btn-primary">View Data</button>
+                        <button class="btn btn-primary" onclick="viewTableData('${table.name}')">View Data</button>
                     </td>
                 `;
                 tableBody.appendChild(row);
             });
+            
+            // Set up checkbox event listeners
+            setupTableCheckboxListeners();
+            
         } else {
             console.log('❌ No tables in response');
             document.getElementById('tables-empty')?.classList.remove('hidden');
@@ -1024,6 +1034,9 @@ function setupEventListeners() {
     
     // Setup table controls
     setupTableControls();
+    
+    // Setup join functionality
+    setupJoinFunctionality();
 }
 
 // Handle column filtering
@@ -1636,6 +1649,269 @@ function showJoinError(message) {
     setTimeout(() => {
         errorDiv.classList.add('hidden');
     }, 5000);
+}
+
+// Setup join functionality
+function setupJoinFunctionality() {
+    // Join tables button
+    const joinBtn = document.getElementById('join-tables-btn');
+    if (joinBtn) {
+        joinBtn.addEventListener('click', function() {
+            const selectedTables = getSelectedTables();
+            if (selectedTables.length >= 2) {
+                performTableJoin(selectedTables);
+            } else {
+                alert('Please select at least 2 tables to join');
+            }
+        });
+    }
+    
+    // Select all tables checkbox
+    const selectAllCheckbox = document.getElementById('select-all-tables');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const tableCheckboxes = document.querySelectorAll('.table-checkbox');
+            tableCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateJoinButtonState();
+        });
+    }
+    
+    // Back to tables from join section
+    const backFromJoinBtn = document.getElementById('back-to-tables-from-join-btn');
+    if (backFromJoinBtn) {
+        backFromJoinBtn.addEventListener('click', function() {
+            showSection('tables');
+            // Update nav active state
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.querySelector('.nav-link[data-section="tables"]')?.classList.add('active');
+        });
+    }
+    
+    // Refresh joined data
+    const refreshJoinedBtn = document.getElementById('refresh-joined-btn');
+    if (refreshJoinedBtn) {
+        refreshJoinedBtn.addEventListener('click', function() {
+            if (currentJoinData && currentJoinData.tableNames) {
+                performTableJoin(currentJoinData.tableNames);
+            }
+        });
+    }
+    
+    // Join pagination
+    const joinPrevBtn = document.getElementById('joined-prev-page');
+    const joinNextBtn = document.getElementById('joined-next-page');
+    
+    if (joinPrevBtn) {
+        joinPrevBtn.addEventListener('click', function() {
+            if (currentJoinPage > 1) {
+                currentJoinPage--;
+                if (currentJoinData && currentJoinData.tableNames) {
+                    performTableJoin(currentJoinData.tableNames, currentJoinPage);
+                }
+            }
+        });
+    }
+    
+    if (joinNextBtn) {
+        joinNextBtn.addEventListener('click', function() {
+            if (currentJoinData && currentJoinData.pagination && currentJoinPage < currentJoinData.pagination.totalPages) {
+                currentJoinPage++;
+                performTableJoin(currentJoinData.tableNames, currentJoinPage);
+            }
+        });
+    }
+}
+
+// Setup table checkbox listeners
+function setupTableCheckboxListeners() {
+    const tableCheckboxes = document.querySelectorAll('.table-checkbox');
+    tableCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateJoinButtonState);
+    });
+}
+
+// Get selected tables
+function getSelectedTables() {
+    const checkboxes = document.querySelectorAll('.table-checkbox:checked');
+    return Array.from(checkboxes).map(checkbox => checkbox.value);
+}
+
+// Update join button state
+function updateJoinButtonState() {
+    const selectedTables = getSelectedTables();
+    const joinBtn = document.getElementById('join-tables-btn');
+    
+    if (joinBtn) {
+        if (selectedTables.length >= 2) {
+            joinBtn.disabled = false;
+            joinBtn.textContent = `Join Selected Tables (${selectedTables.length})`;
+        } else {
+            joinBtn.disabled = true;
+            joinBtn.textContent = 'Join Selected Tables';
+        }
+    }
+}
+
+// Perform table join
+async function performTableJoin(tableNames, page = 1) {
+    console.log(`🔄 Performing join operation on tables: ${tableNames.join(', ')}`);
+    
+    const loading = document.getElementById('joined-tables-loading');
+    const tableBody = document.getElementById('joined-tables-tbody');
+    const tableHead = document.getElementById('joined-tables-thead');
+    const tableTitle = document.getElementById('joined-tables-title');
+    const joinInfo = document.getElementById('join-info-text');
+    
+    if (!loading || !tableBody || !tableHead) {
+        console.error('❌ Required elements not found!');
+        return;
+    }
+    
+    loading.classList.remove('hidden');
+    tableBody.innerHTML = '';
+    tableHead.innerHTML = '';
+    
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.error('❌ No token found in localStorage');
+            alert('No authentication token found. Please login again.');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+        
+        const requestBody = {
+            tableNames: tableNames
+        };
+        
+        console.log('📡 Making join request:', requestBody);
+        
+        const response = await fetch(`/api/users/tables/join?page=${page}&limit=50`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Join response error:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📡 Join success response:', result);
+        
+        loading.classList.add('hidden');
+        
+        if (result.success && result.data) {
+            currentJoinData = result.data;
+            currentJoinPage = page;
+            
+            // Update UI
+            if (tableTitle) {
+                tableTitle.textContent = `Joined Table Data - ${tableNames.join(' ⟵ ')}`;
+            }
+            
+            if (joinInfo) {
+                joinInfo.textContent = `${result.data.joinType} operation on ${tableNames.length} tables. Total rows: ${result.data.pagination.total}`;
+            }
+            
+            // Create table headers
+            if (result.data.columns && result.data.columns.length > 0) {
+                const headerRow = document.createElement('tr');
+                result.data.columns.forEach(column => {
+                    const th = document.createElement('th');
+                    th.textContent = column.display_name || column.column_name;
+                    th.setAttribute('data-column', column.column_name);
+                    headerRow.appendChild(th);
+                });
+                tableHead.appendChild(headerRow);
+            }
+            
+            // Create table rows
+            if (result.data.rows && result.data.rows.length > 0) {
+                result.data.rows.forEach(row => {
+                    const tr = document.createElement('tr');
+                    result.data.columns.forEach(column => {
+                        const td = document.createElement('td');
+                        const value = row[column.display_name] || row[column.column_name];
+                        td.textContent = value !== null && value !== undefined ? value : '';
+                        tr.appendChild(td);
+                    });
+                    tableBody.appendChild(tr);
+                });
+            }
+            
+            // Update pagination
+            updateJoinPagination(result.data.pagination);
+            
+            // Show the joined tables section
+            showSection('joined-tables');
+            
+        } else {
+            console.log('❌ No joined data in response');
+            document.getElementById('joined-tables-empty')?.classList.remove('hidden');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error performing join:', error);
+        loading.classList.add('hidden');
+        alert('Error performing join: ' + error.message);
+    }
+}
+
+// Update join pagination
+function updateJoinPagination(pagination) {
+    const paginationInfo = document.getElementById('joined-pagination-info');
+    const pageNumbers = document.getElementById('joined-page-numbers');
+    const prevBtn = document.getElementById('joined-prev-page');
+    const nextBtn = document.getElementById('joined-next-page');
+    
+    if (paginationInfo) {
+        const start = (pagination.page - 1) * pagination.limit + 1;
+        const end = Math.min(pagination.page * pagination.limit, pagination.total);
+        paginationInfo.textContent = `Showing ${start}-${end} of ${pagination.total} entries`;
+    }
+    
+    if (pageNumbers) {
+        pageNumbers.innerHTML = '';
+        const maxPages = Math.min(pagination.totalPages, 10);
+        const startPage = Math.max(1, pagination.page - 5);
+        const endPage = Math.min(pagination.totalPages, startPage + maxPages - 1);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.textContent = i;
+            pageBtn.className = `btn btn-sm ${i === pagination.page ? 'btn-primary' : 'btn-secondary'}`;
+            pageBtn.addEventListener('click', function() {
+                if (currentJoinData && currentJoinData.tableNames) {
+                    performTableJoin(currentJoinData.tableNames, i);
+                }
+            });
+            pageNumbers.appendChild(pageBtn);
+        }
+    }
+    
+    if (prevBtn) {
+        prevBtn.disabled = pagination.page <= 1;
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = pagination.page >= pagination.totalPages;
+    }
+}
+
+// Helper function to view individual table data
+function viewTableData(tableName) {
+    loadTableData(tableName);
+    showSection('table-data');
 }
 
 // Initialize theme toggle when DOM is loaded

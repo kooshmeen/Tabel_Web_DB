@@ -63,13 +63,19 @@
         <section id="tables-section" class="dashboard-section active">
             <div class="section-header">
                 <h2>Database Tables</h2>
-                <button id="refresh-tables-btn" class="btn btn-secondary">Refresh</button>
+                <div class="table-controls">
+                    <button id="refresh-tables-btn" class="btn btn-secondary">Refresh</button>
+                    <button id="join-tables-btn" class="btn btn-primary" disabled>Join Selected Tables</button>
+                </div>
             </div>
             
             <div class="table-container">
                 <table id="tables-table" class="data-table">
                     <thead>
                         <tr>
+                            <th>
+                                <input type="checkbox" id="select-all-tables" title="Select All">
+                            </th>
                             <th>Table Name</th>
                             <th>Schema</th>
                             <th>Row Count</th>
@@ -199,6 +205,202 @@
             <div class="logs-content">
                 <p>Activity logs will be displayed here.</p>
             </div>
+        </section>
+
+        <!-- Joined Tables Section -->
+        <section id="joined-tables-section" class="dashboard-section">
+            <div class="section-header">
+                <h2 id="joined-tables-title">Joined Table Data</h2>
+                <div class="table-controls">
+                    <button id="refresh-joined-btn" class="btn btn-secondary">Refresh</button>
+                    <button id="back-to-tables-from-join-btn" class="btn btn-secondary">Back to Tables</button>
+                </div>
+            </div>
+            
+            <div class="join-info">
+                <p id="join-info-text">Join operation details will appear here</p>
+            </div>
+            
+            <div class="table-container">
+                <table id="joined-tables-table" class="data-table">
+                    <thead id="joined-tables-thead">
+                        <!-- Dynamic headers will be loaded here -->
+                    </thead>
+                    <tbody id="joined-tables-tbody">
+                        <!-- Joined data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Add pagination controls for joined data -->
+            <div class="table-pagination">
+                <div class="pagination-info">
+                    <span id="joined-pagination-info">Showing 1-50 of 100 entries</span>
+                </div>
+                <div class="pagination-controls">
+                    <button id="joined-prev-page" class="btn btn-sm btn-secondary">Previous</button>
+                    <span id="joined-page-numbers" class="page-numbers"></span>
+                    <button id="joined-next-page" class="btn btn-sm btn-secondary">Next</button>
+                </div>
+            </div>
+            
+            <div id="joined-tables-loading" class="loading hidden">Loading joined data...</div>
+            <div id="joined-tables-empty" class="empty-state hidden">No joined data found</div>
+        </section>
+
+        <!-- Update the Table Data Section -->
+        <section id="table-data-section" class="dashboard-section">
+            <div class="section-header">
+                <h2 id="table-data-title">Table Data</h2>
+                <div class="table-controls">
+                    <button id="refresh-table-btn" class="btn btn-secondary">Refresh</button>
+                    <button id="add-entry-btn" class="btn btn-secondary">Add Entry</button>
+                    <button id="back-to-tables-btn" class="btn btn-secondary">Back to Tables</button>
+                </div>
+            </div>
+            
+            <!-- Add Entry Modal -->
+            <div class="modal" id="add-entry-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Add New Entry</h3>
+                        <span class="close">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Form fields will be dynamically generated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add search and filter controls -->
+            <div class="table-filters">
+                <div class="filter-group">
+                    <input type="text" id="search-input" placeholder="Search entries..." class="search-input">
+                    <select id="column-filter" class="filter-select">
+                        <option value="">Filter by column...</option>
+                    </select>
+                </div>
+                <div class="table-info">
+                    <span id="entry-counter" class="entry-counter">0 entries</span>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="table-data-table" class="data-table">
+                    <thead id="table-data-thead">
+                        <!-- Dynamic headers will be loaded here -->
+                    </thead>
+                    <tbody id="table-data-tbody">
+                        <!-- Table data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Add pagination controls -->
+            <div class="table-pagination">
+                <div class="pagination-info">
+                    <span id="pagination-info">Showing 1-50 of 100 entries</span>
+                </div>
+                <div class="pagination-controls">
+                    <button id="prev-page" class="btn btn-sm btn-secondary">Previous</button>
+                    <span id="page-numbers" class="page-numbers"></span>
+                    <button id="next-page" class="btn btn-sm btn-secondary">Next</button>
+                </div>
+            </div>
+            
+            <div id="table-data-loading" class="loading hidden">Loading table data...</div>
+            <div id="table-data-empty" class="empty-state hidden">No data found</div>
+        </section>
+
+        <!-- User Management Section -->
+        <section id="users-section" class="dashboard-section">
+            <div class="section-header">
+                <h2>User Management</h2>
+                <button id="add-user-btn" class="btn btn-secondary">Add User</button>
+            </div>
+            
+            <div class="table-container">
+                <table id="users-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody">
+                        <!-- Users will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="users-loading" class="loading hidden">Loading users...</div>
+            <div id="users-empty" class="empty-state hidden">No users found</div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="settings-section" class="dashboard-section">
+            <div class="section-header">
+                <h2>Settings</h2>
+            </div>
+            
+            <div class="settings-content">
+                <p>Settings panel will be implemented here.</p>
+            </div>
+        </section>
+
+        <!-- Activity Logs Section -->
+        <section id="logs-section" class="dashboard-section">
+            <div class="section-header">
+                <h2>Activity Logs</h2>
+            </div>
+            
+            <div class="logs-content">
+                <p>Activity logs will be displayed here.</p>
+            </div>
+        </section>
+
+        <!-- Joined Tables Section -->
+        <section id="joined-tables-section" class="dashboard-section">
+            <div class="section-header">
+                <h2 id="joined-tables-title">Joined Table Data</h2>
+                <div class="table-controls">
+                    <button id="refresh-joined-btn" class="btn btn-secondary">Refresh</button>
+                    <button id="back-to-tables-from-join-btn" class="btn btn-secondary">Back to Tables</button>
+                </div>
+            </div>
+            
+            <div class="join-info">
+                <p id="join-info-text">Join operation details will appear here</p>
+            </div>
+            
+            <div class="table-container">
+                <table id="joined-tables-table" class="data-table">
+                    <thead id="joined-tables-thead">
+                        <!-- Dynamic headers will be loaded here -->
+                    </thead>
+                    <tbody id="joined-tables-tbody">
+                        <!-- Joined data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Add pagination controls for joined data -->
+            <div class="table-pagination">
+                <div class="pagination-info">
+                    <span id="joined-pagination-info">Showing 1-50 of 100 entries</span>
+                </div>
+                <div class="pagination-controls">
+                    <button id="joined-prev-page" class="btn btn-sm btn-secondary">Previous</button>
+                    <span id="joined-page-numbers" class="page-numbers"></span>
+                    <button id="joined-next-page" class="btn btn-sm btn-secondary">Next</button>
+                </div>
+            </div>
+            
+            <div id="joined-tables-loading" class="loading hidden">Loading joined data...</div>
+            <div id="joined-tables-empty" class="empty-state hidden">No joined data found</div>
         </section>
 
         <!-- Table Data Modal -->

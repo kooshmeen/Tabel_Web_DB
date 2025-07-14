@@ -49,6 +49,12 @@ router.patch('/tables/:tableName/rows/:rowId', authMiddleware, UserController.up
 // DELETE /api/users/tables/:tableName/rows/:rowId - Delete specific row
 router.delete('/tables/:tableName/rows/:rowId', authMiddleware, UserController.deleteTableRow);
 
+// POST /api/users/tables/join - Get joined table data
+router.post('/tables/join', authMiddleware, UserController.getJoinedTableData);
+
+// GET /api/users/tables/relationships - Get table relationships
+router.get('/tables/relationships', authMiddleware, UserController.getTableRelationships);
+
 
 
 module.exports = router;

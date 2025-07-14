@@ -640,6 +640,83 @@ input:focus, select:focus, textarea:focus {
 }
 
 
+/* Join functionality styles */
+.table-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.table-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--accent-primary);
+}
+
+.table-checkbox:hover {
+    transform: scale(1.1);
+}
+
+#join-tables-btn {
+    background: var(--accent-primary);
+    color: white;
+    white-space: nowrap;
+}
+
+#join-tables-btn:hover:not(:disabled) {
+    background: #2980b9;
+}
+
+#join-tables-btn:disabled {
+    background: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.join-info {
+    background: var(--bg-tertiary);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.join-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Joined tables section specific styles */
+#joined-tables-section .data-table th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 12px 8px;
+    text-align: left;
+    border-bottom: 2px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+#joined-tables-section .data-table td {
+    font-size: 12px;
+    padding: 8px;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#joined-tables-section .data-table td:hover {
+    background: var(--table-row-hover);
+    white-space: normal;
+    word-wrap: break-word;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .dashboard-nav ul {
@@ -679,5 +756,25 @@ input:focus, select:focus, textarea:focus {
     
     .table-controls {
         justify-content: center;
+    }
+    
+    #join-tables-btn {
+        width: 100%;
+        max-width: 250px;
+    }
+    
+    .join-info {
+        padding: 10px;
+        font-size: 12px;
+    }
+    
+    #joined-tables-section .data-table {
+        font-size: 11px;
+    }
+    
+    #joined-tables-section .data-table th,
+    #joined-tables-section .data-table td {
+        padding: 6px 4px;
+        max-width: 100px;
     }
 }
