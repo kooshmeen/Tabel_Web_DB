@@ -37,3 +37,18 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 SELECT * FROM orders;
+
+-- Add sample data to items table
+INSERT INTO items (user_id, item_name, item_description, item_price, quantity)
+VALUES
+    (1, 'Sample Item 1', 'This is a sample item description.', 19.99, 10),
+    (1, 'Sample Item 2', 'This is another sample item description.', 29.99, 5),
+    (2, 'Sample Item 3', 'This is a third sample item description.', 39.99, 2);
+
+-- Add sample data to orders table
+
+INSERT INTO orders (user_id, item_id, quantity, total_price)
+VALUES
+    (1, 1, 2, 39.98), -- User 1 ordered 2 of Item 1
+    (1, 2, 1, 29.99), -- User 1 ordered 1 of Item 2
+    (2, 3, 1, 39.99); -- User 2 ordered 1 of Item 3

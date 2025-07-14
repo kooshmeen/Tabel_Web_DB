@@ -596,7 +596,7 @@ class User {
             if (validTableResult.rows.length === 0) {
                 throw new Error('Table not found');
             }
-            
+
             // Check if row exists
             const checkRowQuery = `SELECT id FROM ${tableName} WHERE id = $1`;
             const checkResult = await pool.query(checkRowQuery, [rowId]);
@@ -633,8 +633,8 @@ class User {
             throw new Error('Error deleting table row: ' + error.message);
         }
     }
+    // region JOIN
 
-    
 }
 
 module.exports = User;
