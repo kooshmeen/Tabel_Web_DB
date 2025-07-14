@@ -699,30 +699,85 @@ class User {
             joinQuery += selectColumns;
             joinQuery += ` FROM ${primaryTable}`;
             
-            // Add LEFT JOINs for other tables
-            // We'll use 'id' as the default join column (most common primary key)
+            // Add LEFT JOINs for other tables using proper foreign key relationships
             for (let i = 1; i < tableNames.length; i++) {
                 const tableName = tableNames[i];
+                let joinCondition = null;
                 
-                // Check if both tables have an 'id' column for joining
-                const primaryHasId = allTableColumns[primaryTable].some(col => col.column_name === 'id');
-                const currentHasId = allTableColumns[tableName].some(col => col.column_name === 'id');
+                // First, check for foreign key relationships
+                const relationshipsQuery = `
+                    SELECT 
+                        tc.table_name as source_table,
+                        kcu.column_name as source_column,
+                        ccu.table_name as target_table,
+                        ccu.column_name as target_column
+                    FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu 
+                        ON tc.constraint_name = kcu.constraint_name
+                    JOIN information_schema.constraint_column_usage ccu 
+                        ON ccu.constraint_name = tc.constraint_name
+                    WHERE tc.constraint_type = 'FOREIGN KEY'
+                        AND tc.table_schema = 'public'
+                        AND (
+                            (tc.table_name = $1 AND ccu.table_name = $2) OR
+                            (tc.table_name = $2 AND ccu.table_name = $1)
+                        )
+                `;
                 
-                if (primaryHasId && currentHasId) {
-                    joinQuery += ` LEFT JOIN ${tableName} ON ${primaryTable}.id = ${tableName}.id`;
-                } else {
-                    // If no common 'id' column, try to find a common column name
-                    const primaryColumns = allTableColumns[primaryTable].map(col => col.column_name);
-                    const currentColumns = allTableColumns[tableName].map(col => col.column_name);
-                    const commonColumn = primaryColumns.find(col => currentColumns.includes(col));
+                try {
+                    const fkResult = await pool.query(relationshipsQuery, [primaryTable, tableName]);
                     
-                    if (commonColumn) {
-                        joinQuery += ` LEFT JOIN ${tableName} ON ${primaryTable}.${commonColumn} = ${tableName}.${commonColumn}`;
-                    } else {
-                        // As a fallback, use a cross join (cartesian product) - not ideal but functional
-                        joinQuery += ` CROSS JOIN ${tableName}`;
-                        console.warn(`⚠️ No common column found between ${primaryTable} and ${tableName}, using CROSS JOIN`);
+                    if (fkResult.rows.length > 0) {
+                        const fk = fkResult.rows[0];
+                        // Use the foreign key relationship
+                        if (fk.source_table === primaryTable) {
+                            joinCondition = `${fk.source_table}.${fk.source_column} = ${fk.target_table}.${fk.target_column}`;
+                        } else {
+                            joinCondition = `${fk.target_table}.${fk.target_column} = ${fk.source_table}.${fk.source_column}`;
+                        }
                     }
+                } catch (fkError) {
+                    console.warn('⚠️ Error fetching foreign key relationships:', fkError.message);
+                }
+                
+                // If no foreign key found, try common patterns
+                if (!joinCondition) {
+                    // Check for user_id pattern (common in many tables)
+                    const currentTableColumns = allTableColumns[tableName].map(col => col.column_name);
+                    const primaryTableColumns = allTableColumns[primaryTable].map(col => col.column_name);
+                    
+                    if (primaryTable === 'users' && currentTableColumns.includes('user_id')) {
+                        joinCondition = `users.id = ${tableName}.user_id`;
+                    } else if (tableName === 'users' && primaryTableColumns.includes('user_id')) {
+                        joinCondition = `${primaryTable}.user_id = users.id`;
+                    } else if (currentTableColumns.includes(`${primaryTable}_id`)) {
+                        joinCondition = `${primaryTable}.id = ${tableName}.${primaryTable}_id`;
+                    } else if (primaryTableColumns.includes(`${tableName}_id`)) {
+                        joinCondition = `${primaryTable}.${tableName}_id = ${tableName}.id`;
+                    } else {
+                        // Check if both tables have an 'id' column as fallback
+                        const primaryHasId = allTableColumns[primaryTable].some(col => col.column_name === 'id');
+                        const currentHasId = allTableColumns[tableName].some(col => col.column_name === 'id');
+                        
+                        if (primaryHasId && currentHasId) {
+                            joinCondition = `${primaryTable}.id = ${tableName}.id`;
+                        } else {
+                            // Try to find any common column name
+                            const commonColumn = primaryTableColumns.find(col => currentTableColumns.includes(col));
+                            if (commonColumn) {
+                                joinCondition = `${primaryTable}.${commonColumn} = ${tableName}.${commonColumn}`;
+                            }
+                        }
+                    }
+                }
+                
+                if (joinCondition) {
+                    joinQuery += ` LEFT JOIN ${tableName} ON ${joinCondition}`;
+                    console.log(`🔗 Joining ${primaryTable} with ${tableName} using: ${joinCondition}`);
+                } else {
+                    // As a fallback, use a cross join (cartesian product) - not ideal but functional
+                    joinQuery += ` CROSS JOIN ${tableName}`;
+                    console.warn(`⚠️ No join condition found between ${primaryTable} and ${tableName}, using CROSS JOIN`);
                 }
             }
             
