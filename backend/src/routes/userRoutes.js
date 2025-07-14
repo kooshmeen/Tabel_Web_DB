@@ -49,4 +49,6 @@ router.patch('/tables/:tableName/rows/:rowId', authMiddleware, UserController.up
 // DELETE /api/users/tables/:tableName/rows/:rowId - Delete specific row
 router.delete('/tables/:tableName/rows/:rowId', authMiddleware, UserController.deleteTableRow);
 
+
+
 module.exports = router;

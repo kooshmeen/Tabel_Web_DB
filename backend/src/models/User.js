@@ -633,6 +633,8 @@ class User {
             throw new Error('Error deleting table row: ' + error.message);
         }
     }
+
+    
 }
 
 module.exports = User;

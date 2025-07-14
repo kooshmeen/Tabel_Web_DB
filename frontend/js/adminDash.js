@@ -3,6 +3,11 @@ let currentSortColumn = null;
 let currentSortDirection = 'asc';
 let currentTableData = null; // Store the current table data for sorting
 
+let currentJoinData = null;
+let currentJoinPage = 1;
+let availableTables = [];
+let tableRelationships = [];
+
 // Theme management
 function initializeTheme() {
     // Check for saved theme preference or default to light mode
@@ -137,6 +142,7 @@ function setupEventListeners() {
     
     // Setup table controls
     setupTableControls();
+    
 }
 
 // The main function to load tables
@@ -221,7 +227,6 @@ async function loadDatabaseTables() {
     }
 }
 
-// region load table data
 // Function to load data from a specific table
 async function loadTableData(tableName) {
     console.log(`🔄 loadTableData called for table: ${tableName}`);
@@ -824,7 +829,6 @@ function setupTableControls() {
     }
 }
 
-//region show modal
 // Function to show the add entry modal
 async function showAddEntryModal() {
     const modal = document.getElementById('add-entry-modal');
@@ -1204,6 +1208,434 @@ async function saveNewEntry(modal) {
             saveButton.disabled = false;
         }
     }
+}
+
+// region JOIN
+
+// Initialize join functionality
+function initializeJoinSection() {
+    console.log('🔄 Initializing join section...');
+    
+    // Load available tables
+    loadJoinableTables();
+    
+    // Setup event listeners
+    setupJoinEventListeners();
+}
+
+// Setup join event listeners
+function setupJoinEventListeners() {
+    // Table selection handlers
+    document.getElementById('left-table-select').addEventListener('change', handleTableSelection);
+    document.getElementById('right-table-select').addEventListener('change', handleTableSelection);
+    
+    // Join condition handler
+    document.getElementById('join-condition').addEventListener('change', handleJoinConditionChange);
+    
+    // Button handlers
+    document.getElementById('execute-join-btn').addEventListener('click', executeJoin);
+    document.getElementById('preview-join-btn').addEventListener('click', previewJoin);
+    document.getElementById('refresh-joins-btn').addEventListener('click', loadJoinableTables);
+    
+    // Pagination handlers
+    document.getElementById('join-prev-page').addEventListener('click', () => navigateJoinPage(-1));
+    document.getElementById('join-next-page').addEventListener('click', () => navigateJoinPage(1));
+}
+
+// Load joinable tables
+async function loadJoinableTables() {
+    console.log('🔄 Loading joinable tables...');
+    
+    const loading = document.getElementById('joins-loading');
+    const errorDiv = document.getElementById('joins-error');
+    
+    try {
+        loading.classList.remove('hidden');
+        errorDiv.classList.add('hidden');
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/users/joins/tables', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            availableTables = result.data;
+            populateTableSelects();
+            
+            // Also load relationships
+            await loadTableRelationships();
+        } else {
+            throw new Error(result.error || 'Failed to load tables');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading joinable tables:', error);
+        showJoinError('Error loading tables: ' + error.message);
+    } finally {
+        loading.classList.add('hidden');
+    }
+}
+
+// Load table relationships
+async function loadTableRelationships() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/users/joins/relationships', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            tableRelationships = result.data;
+            console.log('📊 Table relationships loaded:', tableRelationships);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading table relationships:', error);
+    }
+}
+
+// Populate table select dropdowns
+function populateTableSelects() {
+    const leftSelect = document.getElementById('left-table-select');
+    const rightSelect = document.getElementById('right-table-select');
+    
+    // Clear existing options
+    leftSelect.innerHTML = '<option value="">Select left table...</option>';
+    rightSelect.innerHTML = '<option value="">Select right table...</option>';
+    
+    // Add table options
+    availableTables.forEach(table => {
+        const leftOption = document.createElement('option');
+        leftOption.value = table.table_name;
+        leftOption.textContent = table.table_name;
+        leftSelect.appendChild(leftOption);
+        
+        const rightOption = document.createElement('option');
+        rightOption.value = table.table_name;
+        rightOption.textContent = table.table_name;
+        rightSelect.appendChild(rightOption);
+    });
+}
+
+// Handle table selection
+async function handleTableSelection() {
+    const leftTable = document.getElementById('left-table-select').value;
+    const rightTable = document.getElementById('right-table-select').value;
+    
+    if (leftTable && rightTable && leftTable !== rightTable) {
+        await loadJoinSuggestions(leftTable, rightTable);
+    } else {
+        // Clear join conditions
+        const joinConditionSelect = document.getElementById('join-condition');
+        joinConditionSelect.innerHTML = '<option value="">Select join condition...</option>';
+    }
+}
+
+// Load join suggestions
+async function loadJoinSuggestions(leftTable, rightTable) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/users/joins/suggestions/${leftTable}/${rightTable}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        
+        const result = await response.json();
+        
+        const joinConditionSelect = document.getElementById('join-condition');
+        joinConditionSelect.innerHTML = '<option value="">Select join condition...</option>';
+        
+        if (result.success && result.data.length > 0) {
+            result.data.forEach(condition => {
+                const option = document.createElement('option');
+                option.value = condition;
+                option.textContent = condition;
+                joinConditionSelect.appendChild(option);
+            });
+        } else {
+            // Add manual option if no suggestions
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No automatic joins found - use custom condition';
+            option.disabled = true;
+            joinConditionSelect.appendChild(option);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading join suggestions:', error);
+    }
+}
+
+// Handle join condition change
+function handleJoinConditionChange() {
+    const selectedCondition = document.getElementById('join-condition').value;
+    const customCondition = document.getElementById('custom-join-condition');
+    
+    if (selectedCondition) {
+        customCondition.value = selectedCondition;
+    }
+}
+
+// Preview join query
+function previewJoin() {
+    const leftTable = document.getElementById('left-table-select').value;
+    const rightTable = document.getElementById('right-table-select').value;
+    const joinCondition = document.getElementById('custom-join-condition').value || 
+                         document.getElementById('join-condition').value;
+    
+    if (!leftTable || !rightTable || !joinCondition) {
+        alert('Please select both tables and a join condition');
+        return;
+    }
+    
+    const queryInfo = document.getElementById('join-query-info');
+    queryInfo.innerHTML = `
+        <strong>Query Preview:</strong><br>
+        SELECT * FROM ${leftTable}<br>
+        LEFT JOIN ${rightTable} ON ${joinCondition}
+    `;
+    
+    document.getElementById('join-results').style.display = 'block';
+}
+
+// Execute join
+async function executeJoin() {
+    const leftTable = document.getElementById('left-table-select').value;
+    const rightTable = document.getElementById('right-table-select').value;
+    const joinCondition = document.getElementById('custom-join-condition').value || 
+                         document.getElementById('join-condition').value;
+    
+    if (!leftTable || !rightTable || !joinCondition) {
+        alert('Please select both tables and a join condition');
+        return;
+    }
+    
+    const loading = document.getElementById('joins-loading');
+    const errorDiv = document.getElementById('joins-error');
+    
+    try {
+        loading.classList.remove('hidden');
+        errorDiv.classList.add('hidden');
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/users/joins/execute', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                leftTable,
+                rightTable,
+                joinCondition,
+                page: currentJoinPage,
+                limit: 50
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            currentJoinData = result.data;
+            renderJoinResults();
+            document.getElementById('join-results').style.display = 'block';
+        } else {
+            throw new Error(result.error || 'Failed to execute join');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error executing join:', error);
+        showJoinError('Error executing join: ' + error.message);
+    } finally {
+        loading.classList.add('hidden');
+    }
+}
+
+// Render join results
+function renderJoinResults() {
+    if (!currentJoinData) return;
+    
+    const { leftTable, rightTable, joinCondition, columns, rows, pagination } = currentJoinData;
+    
+    // Update query info
+    const queryInfo = document.getElementById('join-query-info');
+    queryInfo.innerHTML = `
+        <strong>Executed Query:</strong><br>
+        SELECT * FROM ${leftTable} LEFT JOIN ${rightTable} ON ${joinCondition}<br>
+        <strong>Results:</strong> ${pagination.total} total rows, showing page ${pagination.page} of ${pagination.totalPages}
+    `;
+    
+    // Clear existing table
+    const tableHead = document.getElementById('join-results-thead');
+    const tableBody = document.getElementById('join-results-tbody');
+    tableHead.innerHTML = '';
+    tableBody.innerHTML = '';
+    
+    if (rows.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="100%">No results found</td></tr>';
+        return;
+    }
+    
+    // Create headers with table grouping
+    const headerRow = document.createElement('tr');
+    
+    // Left table headers
+    const leftTableHeader = document.createElement('th');
+    leftTableHeader.textContent = leftTable.toUpperCase();
+    leftTableHeader.colSpan = columns[leftTable].length;
+    leftTableHeader.className = 'table-header-group left-table-col';
+    headerRow.appendChild(leftTableHeader);
+    
+    // Right table headers
+    const rightTableHeader = document.createElement('th');
+    rightTableHeader.textContent = rightTable.toUpperCase();
+    rightTableHeader.colSpan = columns[rightTable].length;
+    rightTableHeader.className = 'table-header-group right-table-col';
+    headerRow.appendChild(rightTableHeader);
+    
+    tableHead.appendChild(headerRow);
+    
+    // Column headers
+    const columnHeaderRow = document.createElement('tr');
+    
+    // Left table columns
+    columns[leftTable].forEach(column => {
+        const th = document.createElement('th');
+        th.textContent = column.column_name;
+        th.className = 'left-table-col';
+        columnHeaderRow.appendChild(th);
+    });
+    
+    // Right table columns
+    columns[rightTable].forEach(column => {
+        const th = document.createElement('th');
+        th.textContent = column.column_name;
+        th.className = 'right-table-col';
+        columnHeaderRow.appendChild(th);
+    });
+    
+    tableHead.appendChild(columnHeaderRow);
+    
+    // Create data rows
+    rows.forEach(rowData => {
+        const tr = document.createElement('tr');
+        
+        // Left table data
+        columns[leftTable].forEach(column => {
+            const td = document.createElement('td');
+            const value = rowData[leftTable][column.column_name];
+            td.textContent = value !== null && value !== undefined ? value : '';
+            td.className = 'left-table-col';
+            tr.appendChild(td);
+        });
+        
+        // Right table data
+        columns[rightTable].forEach(column => {
+            const td = document.createElement('td');
+            const value = rowData[rightTable][column.column_name];
+            td.textContent = value !== null && value !== undefined ? value : '';
+            td.className = 'right-table-col';
+            tr.appendChild(td);
+        });
+        
+        tableBody.appendChild(tr);
+    });
+    
+    // Update pagination
+    updateJoinPagination();
+}
+
+// Update join pagination
+function updateJoinPagination() {
+    if (!currentJoinData) return;
+    
+    const { pagination } = currentJoinData;
+    const paginationInfo = document.getElementById('join-pagination-info');
+    const pageNumbers = document.getElementById('join-page-numbers');
+    const prevBtn = document.getElementById('join-prev-page');
+    const nextBtn = document.getElementById('join-next-page');
+    
+    // Update info
+    const start = ((pagination.page - 1) * pagination.limit) + 1;
+    const end = Math.min(pagination.page * pagination.limit, pagination.total);
+    paginationInfo.textContent = `Showing ${start}-${end} of ${pagination.total} results`;
+    
+    // Update buttons
+    prevBtn.disabled = pagination.page <= 1;
+    nextBtn.disabled = pagination.page >= pagination.totalPages;
+    
+    // Update page numbers
+    pageNumbers.innerHTML = '';
+    const maxPageNumbers = 5;
+    let startPage = Math.max(1, pagination.page - Math.floor(maxPageNumbers / 2));
+    let endPage = Math.min(pagination.totalPages, startPage + maxPageNumbers - 1);
+    
+    if (endPage - startPage + 1 < maxPageNumbers) {
+        startPage = Math.max(1, endPage - maxPageNumbers + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.textContent = i;
+        pageBtn.className = `page-number ${i === pagination.page ? 'active' : ''}`;
+        pageBtn.addEventListener('click', () => navigateJoinToPage(i));
+        pageNumbers.appendChild(pageBtn);
+    }
+}
+
+// Navigate join page
+function navigateJoinPage(direction) {
+    if (!currentJoinData) return;
+    
+    const newPage = currentJoinPage + direction;
+    if (newPage >= 1 && newPage <= currentJoinData.pagination.totalPages) {
+        navigateJoinToPage(newPage);
+    }
+}
+
+// Navigate to specific join page
+function navigateJoinToPage(page) {
+    currentJoinPage = page;
+    executeJoin();
+}
+
+// Show join error
+function showJoinError(message) {
+    const errorDiv = document.getElementById('joins-error');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+    
+    setTimeout(() => {
+        errorDiv.classList.add('hidden');
+    }, 5000);
 }
 
 // Initialize theme toggle when DOM is loaded
