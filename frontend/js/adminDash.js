@@ -229,7 +229,6 @@ async function loadDatabaseTables() {
             console.log('❌ No tables in response');
             document.getElementById('tables-empty')?.classList.remove('hidden');
         }
-        
     } catch (error) {
         console.error('❌ Error loading tables:', error);
         loading.classList.add('hidden');
@@ -1735,7 +1734,12 @@ function setupTableCheckboxListeners() {
 // Get selected tables
 function getSelectedTables() {
     const checkboxes = document.querySelectorAll('.table-checkbox:checked');
-    return Array.from(checkboxes).map(checkbox => checkbox.value);
+    // if join contains 'users' table, make that primary table (first table in array)
+    const selectedTables = Array.from(checkboxes).map(checkbox => checkbox.value);
+    if (selectedTables.includes('users')) {
+        selectedTables.unshift(selectedTables.splice(selectedTables.indexOf('users'), 1)[0]);
+    }
+    return selectedTables;
 }
 
 // Update join button state
