@@ -2352,7 +2352,8 @@ function applyJoinedTableFilters() {
         }
     });
     
-    console.log('🔍 Joined table filters:', { globalSearchTerm, columnFilters });
+    // Check if any filters are active
+    const hasActiveFilters = globalSearchTerm || Object.keys(columnFilters).length > 0;
     
     let visibleRows = [];
     
@@ -2385,7 +2386,6 @@ function applyJoinedTableFilters() {
                 
                 if (headerRow) {
                     const headerCells = headerRow.querySelectorAll('th');
-                    console.log('📋 Header cells found:', Array.from(headerCells).map(h => h.textContent.trim()));
                     
                     for (const [columnName, searchTerm] of Object.entries(columnFilters)) {
                         let columnIndex = -1;
@@ -2398,13 +2398,10 @@ function applyJoinedTableFilters() {
                             }
                         });
                         
-                        console.log(`🔍 Column "${columnName}" search term "${searchTerm}" found at index ${columnIndex}`);
-                        
                         if (columnIndex !== -1 && columnIndex < cells.length) {
                             const cell = cells[columnIndex];
                             const cellText = cell ? cell.textContent.toLowerCase() : '';
                             const matches = cellText.includes(searchTerm);
-                            console.log(`🔍 Cell [${columnIndex}] text "${cellText}" matches "${searchTerm}": ${matches}`);
                             
                             if (!cell || !matches) {
                                 matchFound = false;
@@ -2421,10 +2418,52 @@ function applyJoinedTableFilters() {
         }
     });
     
-    // Update filtered count
+    // Update filtered count and pagination info
     const entryCounter = document.getElementById('joined-entry-counter');
     if (entryCounter) {
-        entryCounter.textContent = `${visibleRows.length} entries (filtered)`;
+        if (visibleRows.length === rows.length) {
+            entryCounter.textContent = `${visibleRows.length} entries`;
+        } else {
+            entryCounter.textContent = `${visibleRows.length} entries (filtered)`;
+        }
+    }
+    
+    // Update pagination info based on filtered results
+    const paginationInfo = document.getElementById('joined-pagination-info');
+    const pageNumbers = document.getElementById('joined-page-numbers');
+    const prevBtn = document.getElementById('joined-prev-page');
+    const nextBtn = document.getElementById('joined-next-page');
+    
+    if (hasActiveFilters) {
+        // When filtering, show filtered pagination info and hide page controls
+        if (paginationInfo) {
+            if (isViewingAll) {
+                paginationInfo.textContent = `Showing all ${visibleRows.length} entries (filtered)`;
+            }
+            else {
+                const start = (currentPage - 1) * pageSize + 1;
+                const end = Math.min(currentPage * pageSize, visibleRows.length);
+                paginationInfo.textContent = `Showing ${start}-${end} of ${visibleRows.length} entries`;
+            }
+        }
+        
+        // Hide pagination controls when filtering (since all filtered results are shown)
+        if (pageNumbers) {
+            pageNumbers.innerHTML = '';
+        }
+        
+        if (prevBtn) {
+            prevBtn.disabled = true;
+        }
+        
+        if (nextBtn) {
+            nextBtn.disabled = true;
+        }
+    } else {
+        // When no filters are active, restore original pagination
+        if (currentJoinData && currentJoinData.pagination) {
+            updateJoinPagination(currentJoinData.pagination);
+        }
     }
     
     // Show/hide rows based on filter results
