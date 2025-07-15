@@ -807,7 +807,7 @@ function navigateToPage(page) {
 
 // Apply current filters for single table view
 function applyTableFilters() {
-    const globalSearchInput = document.getElementById('search-input');
+    const globalSearchInput = document.getElementById('global-search-input');
     const globalSearchTerm = globalSearchInput ? globalSearchInput.value.toLowerCase() : '';
     
     const tableBody = document.getElementById('table-data-tbody');
@@ -2133,7 +2133,6 @@ async function performTableJoin(tableNames, page = 1, viewAll = false) {
                     tableBody.appendChild(tr);
                 });
             }
-            
             // Update pagination
             updateJoinPagination(result.data.pagination);
             
@@ -2353,6 +2352,8 @@ function applyJoinedTableFilters() {
         }
     });
     
+    console.log('🔍 Joined table filters:', { globalSearchTerm, columnFilters });
+    
     let visibleRows = [];
     
     // Filter rows based on search terms
@@ -2379,34 +2380,33 @@ function applyJoinedTableFilters() {
         if (matchFound && Object.keys(columnFilters).length > 0) {
             const tableHead = document.getElementById('joined-tables-thead');
             if (tableHead) {
-                const headerRows = tableHead.querySelectorAll('tr');
-                let columnHeaderRow = null;
+                // Get the actual column header row (not the search input row)
+                const headerRow = tableHead.querySelector('tr:not(.joined-column-search-row)');
                 
-                // Find the column header row (usually the last one)
-                for (let i = headerRows.length - 1; i >= 0; i--) {
-                    if (headerRows[i].querySelectorAll('th').length > 0) {
-                        columnHeaderRow = headerRows[i];
-                        break;
-                    }
-                }
-                
-                if (columnHeaderRow) {
-                    const headerCells = columnHeaderRow.querySelectorAll('th');
+                if (headerRow) {
+                    const headerCells = headerRow.querySelectorAll('th');
+                    console.log('📋 Header cells found:', Array.from(headerCells).map(h => h.textContent.trim()));
                     
                     for (const [columnName, searchTerm] of Object.entries(columnFilters)) {
                         let columnIndex = -1;
                         
-                        // Find the column index
+                        // Find the column index by matching the column name exactly
                         headerCells.forEach((header, idx) => {
                             const headerText = header.textContent.trim();
-                            if (headerText === columnName || headerText.includes(columnName)) {
+                            if (headerText === columnName) {
                                 columnIndex = idx;
                             }
                         });
                         
+                        console.log(`🔍 Column "${columnName}" search term "${searchTerm}" found at index ${columnIndex}`);
+                        
                         if (columnIndex !== -1 && columnIndex < cells.length) {
                             const cell = cells[columnIndex];
-                            if (!cell || !cell.textContent.toLowerCase().includes(searchTerm)) {
+                            const cellText = cell ? cell.textContent.toLowerCase() : '';
+                            const matches = cellText.includes(searchTerm);
+                            console.log(`🔍 Cell [${columnIndex}] text "${cellText}" matches "${searchTerm}": ${matches}`);
+                            
+                            if (!cell || !matches) {
                                 matchFound = false;
                                 break;
                             }
