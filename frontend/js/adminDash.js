@@ -1666,16 +1666,16 @@ function setupJoinFunctionality() {
     }
     
     // Select all tables checkbox
-    const selectAllCheckbox = document.getElementById('select-all-tables');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            const tableCheckboxes = document.querySelectorAll('.table-checkbox');
-            tableCheckboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-            updateJoinButtonState();
-        });
-    }
+    // const selectAllCheckbox = document.getElementById('select-all-tables');
+    // if (selectAllCheckbox) {
+    //     selectAllCheckbox.addEventListener('change', function() {
+    //         const tableCheckboxes = document.querySelectorAll('.table-checkbox');
+    //         tableCheckboxes.forEach(checkbox => {
+    //             checkbox.checked = this.checked;
+    //         });
+    //         updateJoinButtonState();
+    //     });
+    // }
     
     // Back to tables from join section
     const backFromJoinBtn = document.getElementById('back-to-tables-from-join-btn');
