@@ -32,7 +32,7 @@ class AuthController {
 
             // Generate JWT token
             const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-                expiresIn: '1h' // Token valid for 1 hour
+                expiresIn: '72h' // Token valid for 72 hours
             });
 
             res.json({

@@ -3,6 +3,14 @@ let currentSortColumn = null;
 let currentSortDirection = 'asc';
 let currentTableData = null; // Store the current table data for sorting
 
+// Pagination variables for normal table
+let currentPage = 1;
+let pageSize = 50;
+let totalRows = 0;
+let totalPages = 0;
+let filteredRows = 0;
+let isViewingAll = false;
+
 let currentJoinData = null;
 let currentJoinPage = 1;
 let availableTables = [];
@@ -325,6 +333,10 @@ function renderTable(tableName) {
     // Clear existing content
     tableBody.innerHTML = '';
     if (tableHead) tableHead.innerHTML = '';
+    
+    // Reset pagination
+    currentPage = 1;
+    isViewingAll = false;
     
     // Update entry counter
     updateEntryCounter(rows.length, tableName);
@@ -692,18 +704,170 @@ async function deleteRow(tableName, rowId) {
     }
 }
 
-// Add this new function to update the entry counter
+// Update entry counter and pagination info
 function updateEntryCounter(count, tableName) {
+    totalRows = count;
+    filteredRows = count;
+    
+    // Update entry counter element
     const counterElement = document.getElementById('entry-counter');
     if (counterElement) {
-        counterElement.textContent = `Showing ${count} entries`;
+        counterElement.textContent = `${count} entries`;
     }
+    
+    // Update pagination info
+    updateTablePagination();
     
     // Update the table title with count
     const tableTitle = document.getElementById('table-data-title');
     if (tableTitle) {
         tableTitle.textContent = `Table Data - ${tableName} (${count} entries)`;
     }
+}
+
+// Update table pagination similar to joined table pagination
+function updateTablePagination() {
+    const paginationInfo = document.getElementById('pagination-info');
+    const pageNumbers = document.getElementById('page-numbers');
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    
+    // Calculate pagination
+    totalPages = Math.ceil(filteredRows / pageSize);
+    
+    if (paginationInfo) {
+        if (isViewingAll) {
+            paginationInfo.textContent = `Showing all ${filteredRows} entries`;
+        } else {
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, filteredRows);
+            paginationInfo.textContent = `Showing ${start}-${end} of ${filteredRows} entries`;
+        }
+    }
+    
+    if (pageNumbers) {
+        pageNumbers.innerHTML = '';
+        
+        if (!isViewingAll && totalPages > 1) {
+            const maxPages = Math.min(totalPages, 10);
+            const startPage = Math.max(1, currentPage - 5);
+            const endPage = Math.min(totalPages, startPage + maxPages - 1);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                pageBtn.className = `btn btn-sm ${i === currentPage ? 'btn-primary' : 'btn-secondary'}`;
+                pageBtn.addEventListener('click', function() {
+                    navigateToPage(i);
+                });
+                pageNumbers.appendChild(pageBtn);
+            }
+        }
+    }
+    
+    if (prevBtn) {
+        prevBtn.disabled = currentPage <= 1 || isViewingAll;
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = currentPage >= totalPages || isViewingAll;
+    }
+}
+
+// Navigate to specific page
+function navigateToPage(page) {
+    currentPage = page;
+    isViewingAll = false;
+    applyCurrentFilters();
+}
+
+// Apply current filters and pagination
+function applyCurrentFilters() {
+    const searchInput = document.getElementById('search-input');
+    const columnFilter = document.getElementById('column-filter');
+    
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const selectedColumn = columnFilter ? columnFilter.value : '';
+    
+    const tableBody = document.getElementById('table-data-tbody');
+    const rows = tableBody.querySelectorAll('tr');
+    
+    let visibleRows = [];
+    
+    // Filter rows based on search term and column filter
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        let matchFound = false;
+        
+        if (selectedColumn) {
+            const tableHead = document.getElementById('table-data-thead');
+            if (tableHead) {
+                const headerCells = tableHead.querySelectorAll('th');
+                let columnIndex = -1;
+                
+                headerCells.forEach((header, idx) => {
+                    const headerText = header.querySelector('span') ? 
+                        header.querySelector('span').textContent.trim() : 
+                        header.textContent.trim();
+                    
+                    if (headerText === selectedColumn) {
+                        columnIndex = idx;
+                    }
+                });
+                
+                if (columnIndex !== -1 && columnIndex < cells.length - 1) {
+                    const cell = cells[columnIndex];
+                    if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
+                        matchFound = true;
+                    }
+                }
+            }
+        } else {
+            for (let i = 0; i < cells.length - 1; i++) {
+                const cell = cells[i];
+                if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
+                    matchFound = true;
+                    break;
+                }
+            }
+        }
+        
+        if (matchFound) {
+            visibleRows.push(row);
+        }
+    });
+    
+    // Update filtered count
+    filteredRows = visibleRows.length;
+    
+    // Apply pagination
+    if (isViewingAll) {
+        visibleRows.forEach(row => row.style.display = '');
+        rows.forEach(row => {
+            if (!visibleRows.includes(row)) {
+                row.style.display = 'none';
+            }
+        });
+    } else {
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        
+        visibleRows.forEach((row, index) => {
+            if (index >= startIndex && index < endIndex) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        rows.forEach(row => {
+            if (!visibleRows.includes(row)) {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    updateTablePagination();
 }
 
 // Add search functionality
@@ -735,72 +899,9 @@ function debounce(func, wait) {
 
 // Handle search functionality
 function handleSearch(event) {
-    const searchTerm = event.target.value.toLowerCase();
-    const columnFilter = document.getElementById('column-filter');
-    const selectedColumn = columnFilter ? columnFilter.value : '';
-    const tableBody = document.getElementById('table-data-tbody');
-    const rows = tableBody.querySelectorAll('tr');
-    
-    let visibleCount = 0;
-    
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        let matchFound = false;
-        
-        if (selectedColumn) {
-            // Find the correct column index by matching with the table headers
-            const tableHead = document.getElementById('table-data-thead');
-            if (tableHead) {
-                const headerCells = tableHead.querySelectorAll('th');
-                let columnIndex = -1;
-                
-                // Find the index of the selected column in the table headers
-                headerCells.forEach((header, idx) => {
-                    const headerText = header.querySelector('span') ? 
-                        header.querySelector('span').textContent.trim() : 
-                        header.textContent.trim();
-                    
-                    if (headerText === selectedColumn) {
-                        columnIndex = idx;
-                    }
-                });
-                
-                // Check only the specific column if found
-                if (columnIndex !== -1 && columnIndex < cells.length - 1) { // -1 to exclude actions column
-                    const cell = cells[columnIndex];
-                    if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
-                        matchFound = true;
-                    }
-                }
-            }
-        } else {
-            // If no column selected, search all columns except the actions column
-            for (let i = 0; i < cells.length - 1; i++) {
-                const cell = cells[i];
-                if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
-                    matchFound = true;
-                    break;
-                }
-            }
-        }
-        
-        if (matchFound) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-    
-    // Update counter for filtered results
-    const counterElement = document.getElementById('entry-counter');
-    if (counterElement) {
-        if (searchTerm || selectedColumn) {
-            counterElement.textContent = `Showing ${visibleCount} of ${rows.length} entries (filtered)`;
-        } else {
-            counterElement.textContent = `Showing ${rows.length} entries`;
-        }
-    }
+    currentPage = 1; // Reset to first page when searching
+    isViewingAll = false;
+    applyCurrentFilters();
 }
 
 // Populate column filter dropdown
@@ -821,6 +922,9 @@ function populateColumnFilter(columns) {
 function setupTableControls() {
     const refreshBtn = document.getElementById('refresh-table-btn');
     const addEntryBtn = document.getElementById('add-entry-btn');
+    const prevPageBtn = document.getElementById('prev-page');
+    const nextPageBtn = document.getElementById('next-page');
+    const viewAllBtn = document.getElementById('view-all-btn');
     
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
@@ -834,6 +938,31 @@ function setupTableControls() {
         addEntryBtn.addEventListener('click', () => {
             // Implement add entry functionality
             showAddEntryModal();
+        });
+    }
+    
+    // Add pagination event listeners
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                navigateToPage(currentPage - 1);
+            }
+        });
+    }
+    
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                navigateToPage(currentPage + 1);
+            }
+        });
+    }
+    
+    if (viewAllBtn) {
+        viewAllBtn.addEventListener('click', () => {
+            isViewingAll = true;
+            currentPage = 1;
+            applyCurrentFilters();
         });
     }
 }
@@ -1040,72 +1169,9 @@ function setupEventListeners() {
 
 // Handle column filtering
 function handleColumnFilter(event) {
-    const selectedColumn = event.target.value;
-    const searchInput = document.getElementById('search-input');
-    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-    const tableBody = document.getElementById('table-data-tbody');
-    const rows = tableBody.querySelectorAll('tr');
-
-    let visibleCount = 0;
-
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        let matchFound = false;
-
-        if (selectedColumn) {
-            // Find the correct column index by matching with the table headers
-            const tableHead = document.getElementById('table-data-thead');
-            if (tableHead) {
-                const headerCells = tableHead.querySelectorAll('th');
-                let columnIndex = -1;
-                
-                // Find the index of the selected column in the table headers
-                headerCells.forEach((header, idx) => {
-                    const headerText = header.querySelector('span') ? 
-                        header.querySelector('span').textContent.trim() : 
-                        header.textContent.trim();
-                    
-                    if (headerText === selectedColumn) {
-                        columnIndex = idx;
-                    }
-                });
-                
-                // Check only the specific column if found
-                if (columnIndex !== -1 && columnIndex < cells.length - 1) { // -1 to exclude actions column
-                    const cell = cells[columnIndex];
-                    if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
-                        matchFound = true;
-                    }
-                }
-            }
-        } else {
-            // If no column selected, search all columns except the actions column
-            for (let i = 0; i < cells.length - 1; i++) {
-                const cell = cells[i];
-                if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
-                    matchFound = true;
-                    break;
-                }
-            }
-        }
-
-        if (matchFound) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-
-    // Update counter for filtered results
-    const counterElement = document.getElementById('entry-counter');
-    if (counterElement) {
-        if (searchTerm || selectedColumn) {
-            counterElement.textContent = `Showing ${visibleCount} of ${rows.length} entries (filtered)`;
-        } else {
-            counterElement.textContent = `Showing ${rows.length} entries`;
-        }
-    }
+    currentPage = 1; // Reset to first page when filtering
+    isViewingAll = false;
+    applyCurrentFilters();
 }
 
 // Function to save new entry to database
