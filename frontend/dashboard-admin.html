@@ -120,10 +120,7 @@
             <!-- Add search and filter controls -->
             <div class="table-filters">
                 <div class="filter-group">
-                    <input type="text" id="search-input" placeholder="Search entries..." class="search-input">
-                    <select id="column-filter" class="filter-select">
-                        <option value="">Filter by column...</option>
-                    </select>
+                    <input type="text" id="global-search-input" placeholder="Search in all columns..." class="search-input">
                 </div>
                 <div class="table-info">
                     <span id="entry-counter" class="entry-counter">0 entries</span>
@@ -220,6 +217,16 @@
             
             <div class="join-info">
                 <p id="join-info-text">Join operation details will appear here</p>
+            </div>
+            
+            <!-- Add search and filter controls for joined tables -->
+            <div class="table-filters">
+                <div class="filter-group">
+                    <input type="text" id="joined-global-search-input" placeholder="Search in all columns..." class="search-input">
+                </div>
+                <div class="table-info">
+                    <span id="joined-entry-counter" class="entry-counter">0 entries</span>
+                </div>
             </div>
             
             <div class="table-container">

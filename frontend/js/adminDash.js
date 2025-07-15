@@ -342,9 +342,6 @@ function renderTable(tableName) {
     // Update entry counter
     updateEntryCounter(rows.length, tableName);
     
-    // Populate column filter
-    populateColumnFilter(columns);
-    
     // Setup search and filter functionality
     setupSearchAndFilter();
     
@@ -406,6 +403,32 @@ function renderTable(tableName) {
         headerRow.appendChild(actionsHeader);
         
         tableHead.appendChild(headerRow);
+        
+        // Add column search row
+        const searchRow = document.createElement('tr');
+        searchRow.className = 'column-search-row';
+        columns.forEach(column => {
+            const th = document.createElement('th');
+            const searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.placeholder = `Search ${column.column_name}...`;
+            searchInput.className = 'column-search-input';
+            searchInput.dataset.column = column.column_name;
+            
+            // Add search event listener
+            searchInput.addEventListener('input', debounce(() => {
+                applyTableFilters();
+            }, 300));
+            
+            th.appendChild(searchInput);
+            searchRow.appendChild(th);
+        });
+        
+        // Add empty actions column
+        const actionsSearchTh = document.createElement('th');
+        searchRow.appendChild(actionsSearchTh);
+        
+        tableHead.appendChild(searchRow);
     }
     
     // Sort the data if a sort column is selected
@@ -779,56 +802,77 @@ function updateTablePagination() {
 function navigateToPage(page) {
     currentPage = page;
     isViewingAll = false;
-    applyCurrentFilters();
+    applyTableFilters();
 }
 
-// Apply current filters and pagination
-function applyCurrentFilters() {
-    const searchInput = document.getElementById('search-input');
-    const columnFilter = document.getElementById('column-filter');
-    
-    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-    const selectedColumn = columnFilter ? columnFilter.value : '';
+// Apply current filters for single table view
+function applyTableFilters() {
+    const globalSearchInput = document.getElementById('global-search-input');
+    const globalSearchTerm = globalSearchInput ? globalSearchInput.value.toLowerCase() : '';
     
     const tableBody = document.getElementById('table-data-tbody');
     const rows = tableBody.querySelectorAll('tr');
     
+    // Get all column search inputs
+    const columnSearchInputs = document.querySelectorAll('.column-search-input');
+    const columnFilters = {};
+    columnSearchInputs.forEach(input => {
+        const column = input.dataset.column;
+        const value = input.value.toLowerCase();
+        if (value) {
+            columnFilters[column] = value;
+        }
+    });
+    
     let visibleRows = [];
     
-    // Filter rows based on search term and column filter
+    // Filter rows based on search terms
     rows.forEach(row => {
         const cells = row.querySelectorAll('td');
-        let matchFound = false;
+        let matchFound = true;
         
-        if (selectedColumn) {
-            const tableHead = document.getElementById('table-data-thead');
-            if (tableHead) {
-                const headerCells = tableHead.querySelectorAll('th');
-                let columnIndex = -1;
-                
-                headerCells.forEach((header, idx) => {
-                    const headerText = header.querySelector('span') ? 
-                        header.querySelector('span').textContent.trim() : 
-                        header.textContent.trim();
-                    
-                    if (headerText === selectedColumn) {
-                        columnIndex = idx;
-                    }
-                });
-                
-                if (columnIndex !== -1 && columnIndex < cells.length - 1) {
-                    const cell = cells[columnIndex];
-                    if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
-                        matchFound = true;
-                    }
+        // Check global search (searches all columns)
+        if (globalSearchTerm) {
+            let globalMatch = false;
+            for (let i = 0; i < cells.length - 1; i++) { // -1 to exclude actions column
+                const cell = cells[i];
+                if (cell && cell.textContent.toLowerCase().includes(globalSearchTerm)) {
+                    globalMatch = true;
+                    break;
                 }
             }
-        } else {
-            for (let i = 0; i < cells.length - 1; i++) {
-                const cell = cells[i];
-                if (cell && cell.textContent.toLowerCase().includes(searchTerm)) {
-                    matchFound = true;
-                    break;
+            if (!globalMatch) {
+                matchFound = false;
+            }
+        }
+        
+        // Check individual column filters
+        if (matchFound && Object.keys(columnFilters).length > 0) {
+            const tableHead = document.getElementById('table-data-thead');
+            if (tableHead) {
+                const headerCells = tableHead.querySelectorAll('tr:first-child th');
+                
+                for (const [columnName, searchTerm] of Object.entries(columnFilters)) {
+                    let columnIndex = -1;
+                    
+                    // Find the column index
+                    headerCells.forEach((header, idx) => {
+                        const headerText = header.querySelector('span') ? 
+                            header.querySelector('span').textContent.trim() : 
+                            header.textContent.trim();
+                        
+                        if (headerText === columnName) {
+                            columnIndex = idx;
+                        }
+                    });
+                    
+                    if (columnIndex !== -1 && columnIndex < cells.length - 1) {
+                        const cell = cells[columnIndex];
+                        if (!cell || !cell.textContent.toLowerCase().includes(searchTerm)) {
+                            matchFound = false;
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -873,15 +917,15 @@ function applyCurrentFilters() {
 
 // Add search functionality
 function setupSearchAndFilter() {
-    const searchInput = document.getElementById('search-input');
-    const columnFilter = document.getElementById('column-filter');
+    const globalSearchInput = document.getElementById('global-search-input');
+    const joinedGlobalSearchInput = document.getElementById('joined-global-search-input');
     
-    if (searchInput) {
-        searchInput.addEventListener('input', debounce(handleSearch, 300));
+    if (globalSearchInput) {
+        globalSearchInput.addEventListener('input', debounce(handleTableSearch, 300));
     }
     
-    if (columnFilter) {
-        columnFilter.addEventListener('change', handleColumnFilter);
+    if (joinedGlobalSearchInput) {
+        joinedGlobalSearchInput.addEventListener('input', debounce(handleJoinedTableSearch, 300));
     }
 }
 
@@ -898,25 +942,16 @@ function debounce(func, wait) {
     };
 }
 
-// Handle search functionality
-function handleSearch(event) {
+// Handle search functionality for single table
+function handleTableSearch(event) {
     currentPage = 1; // Reset to first page when searching
     isViewingAll = false;
-    applyCurrentFilters();
+    applyTableFilters();
 }
 
-// Populate column filter dropdown
-function populateColumnFilter(columns) {
-    const columnFilter = document.getElementById('column-filter');
-    if (columnFilter) {
-        columnFilter.innerHTML = '<option value="">Filter by column...</option>';
-        columns.forEach(column => {
-            const option = document.createElement('option');
-            option.value = column.column_name;
-            option.textContent = column.column_name;
-            columnFilter.appendChild(option);
-        });
-    }
+// Handle search functionality for joined tables
+function handleJoinedTableSearch(event) {
+    applyJoinedTableFilters();
 }
 
 // Add refresh functionality
@@ -975,7 +1010,7 @@ function setupTableControls() {
                 viewAllBtn.style.color = '#fff';
             }
             currentPage = 1;
-            applyCurrentFilters();
+            applyTableFilters();
         });
     }
 }
@@ -1178,13 +1213,6 @@ function setupEventListeners() {
     
     // Setup join functionality
     setupJoinFunctionality();
-}
-
-// Handle column filtering
-function handleColumnFilter(event) {
-    currentPage = 1; // Reset to first page when filtering
-    isViewingAll = false;
-    applyCurrentFilters();
 }
 
 // Function to save new entry to database
@@ -1545,7 +1573,7 @@ async function executeJoin() {
                 joinCondition,
                 page: currentJoinPage,
                 // limit is pageSize if Viewing All is false, otherwise 1000
-                limit: isViewingAll ? 1000 : pageSize
+                limit: isJoinViewingAll ? 1000 : pageSize
             })
         });
         
@@ -2036,6 +2064,27 @@ async function performTableJoin(tableNames, page = 1, viewAll = false) {
                     headerRow.appendChild(th);
                 });
                 tableHead.appendChild(headerRow);
+                
+                // Add column search row for joined tables
+                const searchRow = document.createElement('tr');
+                searchRow.className = 'joined-column-search-row';
+                result.data.columns.forEach(column => {
+                    const th = document.createElement('th');
+                    const searchInput = document.createElement('input');
+                    searchInput.type = 'text';
+                    searchInput.placeholder = `Search ${column.display_name || column.column_name}...`;
+                    searchInput.className = 'joined-column-search-input';
+                    searchInput.dataset.column = column.display_name || column.column_name;
+                    
+                    // Add search event listener
+                    searchInput.addEventListener('input', debounce(() => {
+                        applyJoinedTableFilters();
+                    }, 300));
+                    
+                    th.appendChild(searchInput);
+                    searchRow.appendChild(th);
+                });
+                tableHead.appendChild(searchRow);
             }
             
             // Create table rows
@@ -2084,9 +2133,17 @@ async function performTableJoin(tableNames, page = 1, viewAll = false) {
                     tableBody.appendChild(tr);
                 });
             }
-            
             // Update pagination
             updateJoinPagination(result.data.pagination);
+            
+            // Update joined entry counter
+            const joinedEntryCounter = document.getElementById('joined-entry-counter');
+            if (joinedEntryCounter) {
+                joinedEntryCounter.textContent = `${result.data.pagination.total} entries`;
+            }
+            
+            // Setup search functionality for joined tables
+            setupSearchAndFilter();
             
             // Show the joined tables section
             showSection('joined-tables');
@@ -2274,4 +2331,147 @@ function getBasicPermissions(columnName) {
     return {
         editable: true
     };
+}
+
+// Apply current filters for joined table view
+function applyJoinedTableFilters() {
+    const globalSearchInput = document.getElementById('joined-global-search-input');
+    const globalSearchTerm = globalSearchInput ? globalSearchInput.value.toLowerCase() : '';
+    
+    const tableBody = document.getElementById('joined-tables-tbody');
+    const rows = tableBody.querySelectorAll('tr');
+    
+    // Get all column search inputs for joined tables
+    const columnSearchInputs = document.querySelectorAll('.joined-column-search-input');
+    const columnFilters = {};
+    columnSearchInputs.forEach(input => {
+        const column = input.dataset.column;
+        const value = input.value.toLowerCase();
+        if (value) {
+            columnFilters[column] = value;
+        }
+    });
+    
+    // Check if any filters are active
+    const hasActiveFilters = globalSearchTerm || Object.keys(columnFilters).length > 0;
+    
+    let visibleRows = [];
+    
+    // Filter rows based on search terms
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        let matchFound = true;
+        
+        // Check global search (searches all columns)
+        if (globalSearchTerm) {
+            let globalMatch = false;
+            for (let i = 0; i < cells.length; i++) {
+                const cell = cells[i];
+                if (cell && cell.textContent.toLowerCase().includes(globalSearchTerm)) {
+                    globalMatch = true;
+                    break;
+                }
+            }
+            if (!globalMatch) {
+                matchFound = false;
+            }
+        }
+        
+        // Check individual column filters
+        if (matchFound && Object.keys(columnFilters).length > 0) {
+            const tableHead = document.getElementById('joined-tables-thead');
+            if (tableHead) {
+                // Get the actual column header row (not the search input row)
+                const headerRow = tableHead.querySelector('tr:not(.joined-column-search-row)');
+                
+                if (headerRow) {
+                    const headerCells = headerRow.querySelectorAll('th');
+                    
+                    for (const [columnName, searchTerm] of Object.entries(columnFilters)) {
+                        let columnIndex = -1;
+                        
+                        // Find the column index by matching the column name exactly
+                        headerCells.forEach((header, idx) => {
+                            const headerText = header.textContent.trim();
+                            if (headerText === columnName) {
+                                columnIndex = idx;
+                            }
+                        });
+                        
+                        if (columnIndex !== -1 && columnIndex < cells.length) {
+                            const cell = cells[columnIndex];
+                            const cellText = cell ? cell.textContent.toLowerCase() : '';
+                            const matches = cellText.includes(searchTerm);
+                            
+                            if (!cell || !matches) {
+                                matchFound = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (matchFound) {
+            visibleRows.push(row);
+        }
+    });
+    
+    // Update filtered count and pagination info
+    const entryCounter = document.getElementById('joined-entry-counter');
+    if (entryCounter) {
+        if (visibleRows.length === rows.length) {
+            entryCounter.textContent = `${visibleRows.length} entries`;
+        } else {
+            entryCounter.textContent = `${visibleRows.length} entries (filtered)`;
+        }
+    }
+    
+    // Update pagination info based on filtered results
+    const paginationInfo = document.getElementById('joined-pagination-info');
+    const pageNumbers = document.getElementById('joined-page-numbers');
+    const prevBtn = document.getElementById('joined-prev-page');
+    const nextBtn = document.getElementById('joined-next-page');
+    
+    if (hasActiveFilters) {
+        // When filtering, show filtered pagination info and hide page controls
+        if (paginationInfo) {
+            if (isViewingAll) {
+                paginationInfo.textContent = `Showing all ${visibleRows.length} entries (filtered)`;
+            }
+            else {
+                const start = (currentPage - 1) * pageSize + 1;
+                const end = Math.min(currentPage * pageSize, visibleRows.length);
+                paginationInfo.textContent = `Showing ${start}-${end} of ${visibleRows.length} entries`;
+            }
+        }
+        
+        // Hide pagination controls when filtering (since all filtered results are shown)
+        if (pageNumbers) {
+            pageNumbers.innerHTML = '';
+        }
+        
+        if (prevBtn) {
+            prevBtn.disabled = true;
+        }
+        
+        if (nextBtn) {
+            nextBtn.disabled = true;
+        }
+    } else {
+        // When no filters are active, restore original pagination
+        if (currentJoinData && currentJoinData.pagination) {
+            updateJoinPagination(currentJoinData.pagination);
+        }
+    }
+    
+    // Show/hide rows based on filter results
+    rows.forEach(row => {
+        if (visibleRows.includes(row)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
