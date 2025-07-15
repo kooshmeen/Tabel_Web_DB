@@ -2131,7 +2131,7 @@ function checkJoinPermissions(joinData) {
 // Helper function to fall back to basic permission checking
 function getBasicPermissions(columnName) {
     // If no permissions from API, use basic rules
-    const readOnlyColumns = ['id', 'created_at', 'updated_at'];
+    const readOnlyColumns = ['id', 'created_at', 'updated_at', 'order_date'];
     const foreignKeyPattern = /_id$/;
     
     if (readOnlyColumns.includes(columnName) || foreignKeyPattern.test(columnName)) {

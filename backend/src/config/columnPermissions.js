@@ -13,6 +13,23 @@ const COLUMN_PERMISSIONS = {
         'created_at': { visible: true, editable: false, addable: false, reason: 'System timestamp (auto-generated)' },
         'updated_at': { visible: true, editable: false, addable: false, reason: 'System timestamp (auto-generated)' }
     },
+    'items': {
+        'id': { visible: true, editable: false, addable: false, reason: 'Primary key (auto-generated)' },
+        'user_id': { visible: true, editable: false, addable: false, reason: 'Foreign key (auto-generated)' },
+        'name': { visible: true, editable: true, addable: true },
+        'description': { visible: true, editable: true, addable: true },
+        'item_price': { visible: true, editable: true, addable: true },
+        'quantity': { visible: true, editable: true, addable: true },
+        'created_at': { visible: true, editable: false, addable: false, reason: 'System timestamp (auto-generated)' },
+    },
+    'orders': {
+        'id': { visible: true, editable: false, addable: false, reason: 'Primary key (auto-generated)' },
+        'user_id': { visible: true, editable: false, addable: false, reason: 'Foreign key (auto-generated)' },
+        'item_id': { visible: true, editable: false, addable: false, reason: 'Foreign key (auto-generated)' },
+        'quantity': { visible: true, editable: true, addable: true },
+        'total_price': { visible: true, editable: true, addable: true },
+        'order_date': { visible: true, editable: false, addable: false, reason: 'System timestamp (auto-generated)' },
+    },
     'default': {
         'id': { visible: true, editable: false, addable: false, reason: 'Primary key (auto-generated)' },
         'password': { visible: false, editable: false, addable: true, reason: 'Sensitive data' },
@@ -47,7 +64,10 @@ function getColumnPermissions(tableName, columnName, currentUser, targetRow = nu
     
     // Handle conditional permissions
     if (columnConfig.editable === 'conditional') {
-        if (tableName === 'users' && columnName === 'role') {
+
+        console.log(`Conditional editable for ${tableName}.${columnName} with user role ${currentUser.role}`);
+
+        if (columnName === 'role') {
             // Only allow role editing if current user is admin and target is not admin
             if (currentUser.role === 'admin' && targetRow && targetRow.role !== 'admin') {
                 columnConfig = { ...columnConfig, editable: true };
