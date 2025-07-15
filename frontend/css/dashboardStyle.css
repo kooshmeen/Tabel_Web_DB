@@ -352,6 +352,29 @@ body {
     border-color: var(--accent-warning) !important;
 }
 
+/* Join table readonly cell styles */
+.left-table-col.readonly-cell {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    border-left: 3px solid var(--text-muted);
+}
+
+.right-table-col.readonly-cell {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    border-left: 3px solid var(--text-muted);
+}
+
+.left-table-col.readonly-cell:hover {
+    background-color: rgba(108, 117, 125, 0.15);
+}
+
+.right-table-col.readonly-cell:hover {
+    background-color: rgba(108, 117, 125, 0.15);
+}
+
 /* Utility Classes */
 .hidden {
     display: none;

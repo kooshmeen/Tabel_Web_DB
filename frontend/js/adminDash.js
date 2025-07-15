@@ -1549,6 +1549,17 @@ function renderJoinResults() {
         const th = document.createElement('th');
         th.textContent = column.column_name;
         th.className = 'left-table-col';
+        
+        // Add visual indicators for column permissions
+        const permissions = column.permissions || getBasicPermissions(column.column_name);
+        if (!permissions.editable) {
+            th.classList.add('readonly-column');
+            th.title = permissions.reason || 'This column is not editable';
+        } else if (permissions.editable) {
+            th.classList.add('editable-column');
+            th.title = 'Double-click cells to edit';
+        }
+        
         columnHeaderRow.appendChild(th);
     });
     
@@ -1557,6 +1568,17 @@ function renderJoinResults() {
         const th = document.createElement('th');
         th.textContent = column.column_name;
         th.className = 'right-table-col';
+        
+        // Add visual indicators for column permissions
+        const permissions = column.permissions || getBasicPermissions(column.column_name);
+        if (!permissions.editable) {
+            th.classList.add('readonly-column');
+            th.title = permissions.reason || 'This column is not editable';
+        } else if (permissions.editable) {
+            th.classList.add('editable-column');
+            th.title = 'Double-click cells to edit';
+        }
+        
         columnHeaderRow.appendChild(th);
     });
     
@@ -1583,10 +1605,17 @@ function renderJoinResults() {
             if (rowId) {
                 td.setAttribute('data-row-id', rowId);
                 
-                // Make cell editable if it's not the primary key
-                if (column.column_name !== 'id') {
+                // Check if cell is editable based on permissions (like single table view)
+                const permissions = column.permissions || getBasicPermissions(column.column_name);
+                if (permissions.editable) {
                     td.classList.add('editable-cell');
                     td.addEventListener('dblclick', handleJoinCellEdit);
+                    td.title = 'Double-click to edit';
+                } else {
+                    td.classList.add('readonly-cell');
+                    if (permissions.reason) {
+                        td.title = permissions.reason;
+                    }
                 }
             }
             
@@ -1610,10 +1639,17 @@ function renderJoinResults() {
             if (rowId) {
                 td.setAttribute('data-row-id', rowId);
                 
-                // Make cell editable if it's not the primary key
-                if (column.column_name !== 'id') {
+                // Check if cell is editable based on permissions (like single table view)
+                const permissions = column.permissions || getBasicPermissions(column.column_name);
+                if (permissions.editable) {
                     td.classList.add('editable-cell');
                     td.addEventListener('dblclick', handleJoinCellEdit);
+                    td.title = 'Double-click to edit';
+                } else {
+                    td.classList.add('readonly-cell');
+                    if (permissions.reason) {
+                        td.title = permissions.reason;
+                    }
                 }
             }
             
@@ -1903,11 +1939,22 @@ async function performTableJoin(tableNames, page = 1) {
                             // Look for ID in the row data
                             const idColumnName = `${sourceTable}.id`;
                             const rowId = row[idColumnName];
-                            if (rowId && column.column_name !== 'id') {
+                            if (rowId) {
                                 td.setAttribute('data-row-id', rowId);
-                                td.classList.add('editable-cell');
-                                td.classList.add(`${sourceTable}-table-col`);
-                                td.addEventListener('dblclick', handleJoinCellEdit);
+                                
+                                // Check if cell is editable based on permissions
+                                const permissions = column.permissions || getBasicPermissions(column.column_name);
+                                if (permissions.editable) {
+                                    td.classList.add('editable-cell');
+                                    td.classList.add(`${sourceTable}-table-col`);
+                                    td.addEventListener('dblclick', handleJoinCellEdit);
+                                    td.title = 'Double-click to edit';
+                                } else {
+                                    td.classList.add('readonly-cell');
+                                    if (permissions.reason) {
+                                        td.title = permissions.reason;
+                                    }
+                                }
                             }
                         }
                         
@@ -2064,3 +2111,37 @@ document.addEventListener('DOMContentLoaded', function() {
         themeToggle.setAttribute('data-theme-listener', 'true');
     }
 });
+
+// Helper function to check if join API returned permissions
+function checkJoinPermissions(joinData) {
+    if (!joinData || !joinData.columns) return false;
+    
+    // Check if any column has permissions data
+    for (const tableName in joinData.columns) {
+        const columns = joinData.columns[tableName];
+        for (const column of columns) {
+            if (column.permissions) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Helper function to fall back to basic permission checking
+function getBasicPermissions(columnName) {
+    // If no permissions from API, use basic rules
+    const readOnlyColumns = ['id', 'created_at', 'updated_at'];
+    const foreignKeyPattern = /_id$/;
+    
+    if (readOnlyColumns.includes(columnName) || foreignKeyPattern.test(columnName)) {
+        return {
+            editable: false,
+            reason: 'This column is not editable (system managed)'
+        };
+    }
+    
+    return {
+        editable: true
+    };
+}
