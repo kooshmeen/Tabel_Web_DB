@@ -796,6 +796,46 @@ input:focus, select:focus, textarea:focus {
     word-wrap: break-word;
 }
 
+/* Column search inputs */
+.column-search-row th,
+.joined-column-search-row th {
+    padding: 5px;
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.column-search-input,
+.joined-column-search-input {
+    width: 100%;
+    padding: 5px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.column-search-input:focus,
+.joined-column-search-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.column-search-input::placeholder,
+.joined-column-search-input::placeholder {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+/* Adjust global search input styling */
+#global-search-input,
+#joined-global-search-input {
+    width: 100%;
+    max-width: 400px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .dashboard-nav ul {
