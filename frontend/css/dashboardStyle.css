@@ -106,6 +106,29 @@ body {
     background: #2980b9;
 }
 
+.btn-tertiary {
+    background: #002e5f;
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+}
+
+.btn-tertiary:hover {
+    background: var(--bg-tertiary);
+    transform: scale(1.05);
+}
+
+/* Active state for view all buttons */
+.btn-tertiary.active {
+    background: #007bff !important;
+    color: #fff !important;
+    border-color: #007bff !important;
+}
+
+.btn-tertiary.active:hover {
+    background: #0056b3 !important;
+    transform: scale(1.05);
+}
+
 .btn-theme {
     background: var(--bg-secondary);
     color: var(--text-primary);
