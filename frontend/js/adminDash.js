@@ -5,7 +5,7 @@ let currentTableData = null; // Store the current table data for sorting
 
 // Pagination variables for normal table
 let currentPage = 1;
-let pageSize = 50;
+let pageSize = 20;
 let totalRows = 0;
 let totalPages = 0;
 let filteredRows = 0;
@@ -13,6 +13,7 @@ let isViewingAll = false;
 
 let currentJoinData = null;
 let currentJoinPage = 1;
+let isJoinViewingAll = false;
 let availableTables = [];
 let tableRelationships = [];
 
@@ -960,7 +961,19 @@ function setupTableControls() {
     
     if (viewAllBtn) {
         viewAllBtn.addEventListener('click', () => {
-            isViewingAll = true;
+            // Toggle viewing all entries
+            // Change color when toggled to 'true'
+            if (isViewingAll == true) {
+                isViewingAll = false;
+                viewAllBtn.classList.remove('active');
+                viewAllBtn.style.background = '';
+                viewAllBtn.style.color = '';
+            } else {
+                isViewingAll = true;
+                viewAllBtn.classList.add('active');
+                viewAllBtn.style.background = '#007bff';
+                viewAllBtn.style.color = '#fff';
+            }
             currentPage = 1;
             applyCurrentFilters();
         });
@@ -1531,7 +1544,8 @@ async function executeJoin() {
                 rightTable,
                 joinCondition,
                 page: currentJoinPage,
-                limit: 50
+                // limit is pageSize if Viewing All is false, otherwise 1000
+                limit: isViewingAll ? 1000 : pageSize
             })
         });
         
@@ -1848,7 +1862,7 @@ function setupJoinFunctionality() {
     
     if (joinPrevBtn) {
         joinPrevBtn.addEventListener('click', function() {
-            if (currentJoinPage > 1) {
+            if (currentJoinPage > 1 && !isJoinViewingAll) {
                 currentJoinPage--;
                 if (currentJoinData && currentJoinData.tableNames) {
                     performTableJoin(currentJoinData.tableNames, currentJoinPage);
@@ -1859,9 +1873,37 @@ function setupJoinFunctionality() {
     
     if (joinNextBtn) {
         joinNextBtn.addEventListener('click', function() {
-            if (currentJoinData && currentJoinData.pagination && currentJoinPage < currentJoinData.pagination.totalPages) {
+            if (currentJoinData && currentJoinData.pagination && currentJoinPage < currentJoinData.pagination.totalPages && !isJoinViewingAll) {
                 currentJoinPage++;
                 performTableJoin(currentJoinData.tableNames, currentJoinPage);
+            }
+        });
+    }
+    
+    // Join view all button
+    const joinViewAllBtn = document.getElementById('joined-view-all-btn');
+    if (joinViewAllBtn) {
+        joinViewAllBtn.addEventListener('click', function() {
+            // Toggle viewing all entries for joined tables
+            if (isJoinViewingAll) {
+                isJoinViewingAll = false;
+                joinViewAllBtn.classList.remove('active');
+                joinViewAllBtn.style.background = '';
+                joinViewAllBtn.style.color = '';
+                // Return to paginated view
+                currentJoinPage = 1;
+                if (currentJoinData && currentJoinData.tableNames) {
+                    performTableJoin(currentJoinData.tableNames, currentJoinPage);
+                }
+            } else {
+                isJoinViewingAll = true;
+                joinViewAllBtn.classList.add('active');
+                joinViewAllBtn.style.background = '#007bff';
+                joinViewAllBtn.style.color = '#fff';
+                // Load all data
+                if (currentJoinData && currentJoinData.tableNames) {
+                    performTableJoin(currentJoinData.tableNames, 1, true);
+                }
             }
         });
     }
@@ -1903,8 +1945,19 @@ function updateJoinButtonState() {
 }
 
 // Perform table join
-async function performTableJoin(tableNames, page = 1) {
+async function performTableJoin(tableNames, page = 1, viewAll = false) {
     console.log(`🔄 Performing join operation on tables: ${tableNames.join(', ')}`);
+    
+    // Update view all state
+    if (!viewAll) {
+        isJoinViewingAll = false;
+        const joinViewAllBtn = document.getElementById('joined-view-all-btn');
+        if (joinViewAllBtn) {
+            joinViewAllBtn.classList.remove('active');
+            joinViewAllBtn.style.background = '';
+            joinViewAllBtn.style.color = '';
+        }
+    }
     
     const loading = document.getElementById('joined-tables-loading');
     const tableBody = document.getElementById('joined-tables-tbody');
@@ -1941,7 +1994,9 @@ async function performTableJoin(tableNames, page = 1) {
         
         console.log('📡 Making join request:', requestBody);
         
-        const response = await fetch(`/api/users/tables/join?page=${page}&limit=50`, {
+        // Use a very high limit for view all, or no limit parameter for paginated view
+        const limitParam = viewAll ? '&limit=10000' : '&limit=20';
+        const response = await fetch(`/api/users/tables/join?page=${page}${limitParam}`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(requestBody)
@@ -2056,36 +2111,45 @@ function updateJoinPagination(pagination) {
     const nextBtn = document.getElementById('joined-next-page');
     
     if (paginationInfo) {
-        const start = (pagination.page - 1) * pagination.limit + 1;
-        const end = Math.min(pagination.page * pagination.limit, pagination.total);
-        paginationInfo.textContent = `Showing ${start}-${end} of ${pagination.total} entries`;
+        if (isJoinViewingAll) {
+            paginationInfo.textContent = `Showing all ${pagination.total} entries`;
+        } else {
+            const start = (pagination.page - 1) * pagination.limit + 1;
+            const end = Math.min(pagination.page * pagination.limit, pagination.total);
+            paginationInfo.textContent = `Showing ${start}-${end} of ${pagination.total} entries`;
+        }
     }
     
     if (pageNumbers) {
         pageNumbers.innerHTML = '';
-        const maxPages = Math.min(pagination.totalPages, 10);
-        const startPage = Math.max(1, pagination.page - 5);
-        const endPage = Math.min(pagination.totalPages, startPage + maxPages - 1);
         
-        for (let i = startPage; i <= endPage; i++) {
-            const pageBtn = document.createElement('button');
-            pageBtn.textContent = i;
-            pageBtn.className = `btn btn-sm ${i === pagination.page ? 'btn-primary' : 'btn-secondary'}`;
-            pageBtn.addEventListener('click', function() {
-                if (currentJoinData && currentJoinData.tableNames) {
-                    performTableJoin(currentJoinData.tableNames, i);
-                }
-            });
-            pageNumbers.appendChild(pageBtn);
+        // Only show page numbers if not viewing all
+        if (!isJoinViewingAll && pagination.totalPages > 1) {
+            const maxPages = Math.min(pagination.totalPages, 10);
+            const startPage = Math.max(1, pagination.page - 5);
+            const endPage = Math.min(pagination.totalPages, startPage + maxPages - 1);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                pageBtn.className = `btn btn-sm ${i === pagination.page ? 'btn-primary' : 'btn-secondary'}`;
+                pageBtn.addEventListener('click', function() {
+                    if (currentJoinData && currentJoinData.tableNames && !isJoinViewingAll) {
+                        currentJoinPage = i;
+                        performTableJoin(currentJoinData.tableNames, i);
+                    }
+                });
+                pageNumbers.appendChild(pageBtn);
+            }
         }
     }
     
     if (prevBtn) {
-        prevBtn.disabled = pagination.page <= 1;
+        prevBtn.disabled = pagination.page <= 1 || isJoinViewingAll;
     }
     
     if (nextBtn) {
-        nextBtn.disabled = pagination.page >= pagination.totalPages;
+        nextBtn.disabled = pagination.page >= pagination.totalPages || isJoinViewingAll;
     }
 }
 
