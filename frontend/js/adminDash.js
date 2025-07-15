@@ -1491,6 +1491,12 @@ async function executeJoin() {
     }
 }
 
+// Helper function to view individual table data
+function viewTableData(tableName) {
+    loadTableData(tableName);
+    showSection('table-data');
+}
+
 // Render join results
 function renderJoinResults() {
     if (!currentJoinData) return;
@@ -1521,14 +1527,14 @@ function renderJoinResults() {
     
     // Left table headers
     const leftTableHeader = document.createElement('th');
-    leftTableHeader.textContent = leftTable.toUpperCase();
+    leftTableHeader.textContent = leftTable.toUpperCase() + ' (Double-click to edit)';
     leftTableHeader.colSpan = columns[leftTable].length;
     leftTableHeader.className = 'table-header-group left-table-col';
     headerRow.appendChild(leftTableHeader);
     
     // Right table headers
     const rightTableHeader = document.createElement('th');
-    rightTableHeader.textContent = rightTable.toUpperCase();
+    rightTableHeader.textContent = rightTable.toUpperCase() + ' (Double-click to edit)';
     rightTableHeader.colSpan = columns[rightTable].length;
     rightTableHeader.className = 'table-header-group right-table-col';
     headerRow.appendChild(rightTableHeader);
@@ -1566,6 +1572,24 @@ function renderJoinResults() {
             const value = rowData[leftTable][column.column_name];
             td.textContent = value !== null && value !== undefined ? value : '';
             td.className = 'left-table-col';
+            
+            // Add metadata for editing
+            td.setAttribute('data-source-table', leftTable);
+            td.setAttribute('data-column', column.column_name);
+            td.setAttribute('data-original-value', value || '');
+            
+            // Add row ID if available (assuming 'id' is the primary key)
+            const rowId = rowData[leftTable]['id'];
+            if (rowId) {
+                td.setAttribute('data-row-id', rowId);
+                
+                // Make cell editable if it's not the primary key
+                if (column.column_name !== 'id') {
+                    td.classList.add('editable-cell');
+                    td.addEventListener('dblclick', handleJoinCellEdit);
+                }
+            }
+            
             tr.appendChild(td);
         });
         
@@ -1575,6 +1599,24 @@ function renderJoinResults() {
             const value = rowData[rightTable][column.column_name];
             td.textContent = value !== null && value !== undefined ? value : '';
             td.className = 'right-table-col';
+            
+            // Add metadata for editing
+            td.setAttribute('data-source-table', rightTable);
+            td.setAttribute('data-column', column.column_name);
+            td.setAttribute('data-original-value', value || '');
+            
+            // Add row ID if available
+            const rowId = rowData[rightTable]['id'];
+            if (rowId) {
+                td.setAttribute('data-row-id', rowId);
+                
+                // Make cell editable if it's not the primary key
+                if (column.column_name !== 'id') {
+                    td.classList.add('editable-cell');
+                    td.addEventListener('dblclick', handleJoinCellEdit);
+                }
+            }
+            
             tr.appendChild(td);
         });
         
@@ -1847,6 +1889,28 @@ async function performTableJoin(tableNames, page = 1) {
                         const td = document.createElement('td');
                         const value = row[column.display_name] || row[column.column_name];
                         td.textContent = value !== null && value !== undefined ? value : '';
+                        
+                        // Add metadata for potential editing
+                        td.setAttribute('data-column', column.column_name);
+                        td.setAttribute('data-original-value', value || '');
+                        
+                        // Determine source table and row ID from display name if available
+                        if (column.display_name && column.display_name.includes('.')) {
+                            const parts = column.display_name.split('.');
+                            const sourceTable = parts[0];
+                            td.setAttribute('data-source-table', sourceTable);
+                            
+                            // Look for ID in the row data
+                            const idColumnName = `${sourceTable}.id`;
+                            const rowId = row[idColumnName];
+                            if (rowId && column.column_name !== 'id') {
+                                td.setAttribute('data-row-id', rowId);
+                                td.classList.add('editable-cell');
+                                td.classList.add(`${sourceTable}-table-col`);
+                                td.addEventListener('dblclick', handleJoinCellEdit);
+                            }
+                        }
+                        
                         tr.appendChild(td);
                     });
                     tableBody.appendChild(tr);
@@ -1912,10 +1976,81 @@ function updateJoinPagination(pagination) {
     }
 }
 
-// Helper function to view individual table data
-function viewTableData(tableName) {
-    loadTableData(tableName);
-    showSection('table-data');
+// Function to handle cell editing in join view
+function handleJoinCellEdit(event) {
+    const cell = event.target;
+    const currentValue = cell.textContent;
+    const column = cell.getAttribute('data-column');
+    const sourceTable = cell.getAttribute('data-source-table');
+    const rowId = cell.getAttribute('data-row-id');
+    const originalValue = cell.getAttribute('data-original-value');
+    
+    // Don't edit if already editing or no row ID
+    if (cell.querySelector('input') || !rowId) {
+        return;
+    }
+    
+    console.log(`📝 Editing cell: ${sourceTable}.${column} for row ${rowId}`);
+    
+    // Create input field
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentValue;
+    input.className = 'cell-editor join-cell-editor';
+    
+    // Replace cell content with input
+    cell.innerHTML = '';
+    cell.appendChild(input);
+    input.focus();
+    input.select();
+    
+    // Handle save on Enter or blur
+    const saveEdit = async () => {
+        const newValue = input.value;
+        
+        // If value hasn't changed, just restore
+        if (newValue === originalValue) {
+            cell.textContent = currentValue;
+            return;
+        }
+        
+        try {
+            // Show loading state
+            cell.innerHTML = '<span class="saving">Saving...</span>';
+            
+            // Update database using the source table
+            await updateCellValue(sourceTable, rowId, column, newValue);
+            
+            // Update UI
+            cell.textContent = newValue;
+            cell.setAttribute('data-original-value', newValue);
+            cell.classList.add('cell-updated');
+            
+            // Remove updated class after animation
+            setTimeout(() => {
+                cell.classList.remove('cell-updated');
+            }, 2000);
+            
+        } catch (error) {
+            console.error('❌ Error updating join cell:', error);
+            cell.textContent = currentValue; // Restore original
+            alert('Error updating cell: ' + error.message);
+        }
+    };
+    
+    const cancelEdit = () => {
+        cell.textContent = currentValue;
+    };
+    
+    // Event listeners
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            saveEdit();
+        } else if (e.key === 'Escape') {
+            cancelEdit();
+        }
+    });
 }
 
 // Initialize theme toggle when DOM is loaded

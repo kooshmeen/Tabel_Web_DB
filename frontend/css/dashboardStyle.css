@@ -319,6 +319,39 @@ body {
     font-style: italic;
 }
 
+/* Join table specific styles */
+.join-cell-editor {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 2px solid var(--accent-primary);
+}
+
+.left-table-col.editable-cell {
+    border-left: 3px solid var(--accent-primary);
+}
+
+.right-table-col.editable-cell {
+    border-left: 3px solid var(--accent-warning);
+}
+
+.left-table-col.editable-cell:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+.right-table-col.editable-cell:hover {
+    background-color: rgba(243, 156, 18, 0.1);
+}
+
+.left-table-col.cell-updated {
+    background-color: rgba(52, 152, 219, 0.2) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+.right-table-col.cell-updated {
+    background-color: rgba(243, 156, 18, 0.2) !important;
+    border-color: var(--accent-warning) !important;
+}
+
 /* Utility Classes */
 .hidden {
     display: none;
