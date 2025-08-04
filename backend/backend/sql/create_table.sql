@@ -124,3 +124,51 @@ INSERT INTO orders (user_id, item_id, quantity, total_price) VALUES
 (9, 24, 1, 39.99),   -- Yoga Mat
 (9, 25, 1, 19.99),   -- Water Bottle
 (9, 26, 2, 29.98);   -- 2 Protein Shakers
+
+-- Tables for sudoku game (player table, scores, groups, group members)
+CREATE TABLE IF NOT EXISTS sudoku_players (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL, -- Stored hashed password
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sudoku_scores (
+    id SERIAL PRIMARY KEY,
+    player_id INT REFERENCES sudoku_players(id) ON DELETE CASCADE,
+    time_seconds INT NOT NULL,
+    difficulty VARCHAR(20) NOT NULL, -- e.g., 'easy', 'medium', 'hard'
+    no_mistakes BOOLEAN NOT NULL DEFAULT TRUE, -- True if no mistakes made
+    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sudoku_groups (
+    id SERIAL PRIMARY KEY,
+    group_name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE sudoku_groups ADD COLUMN IF NOT EXISTS group_description TEXT; -- Adding description column to sudoku_groups table
+
+-- Add a password field for joining groups (optional)
+ALTER TABLE sudoku_groups ADD COLUMN IF NOT EXISTS group_password VARCHAR(255); -- Optional password for joining groups
+
+CREATE TABLE IF NOT EXISTS sudoku_group_members (
+    id SERIAL PRIMARY KEY,
+    group_id INT REFERENCES sudoku_groups(id) ON DELETE CASCADE,
+    player_id INT REFERENCES sudoku_players(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    role VARCHAR(20) DEFAULT 'member', -- Default role is 'member', can be 'leader' or 'member'
+    UNIQUE(group_id, player_id) -- Prevent duplicate members in the same group
+);
+
+-- Players will get medals (most sudokus completed in their group, fastest time, etc.)
+CREATE TABLE IF NOT EXISTS sudoku_player_medals (
+    id SERIAL PRIMARY KEY,
+    player_id INT REFERENCES sudoku_players(id) ON DELETE CASCADE,
+    medal_type VARCHAR(50) NOT NULL, -- e.g., 'fastest_time', 'most_completed'
+    description TEXT,
+    number_of_medals INT NOT NULL DEFAULT 0, -- Number of medals of this type awarded
+    awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

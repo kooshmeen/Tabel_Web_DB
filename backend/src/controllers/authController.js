@@ -1,7 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-
 class AuthController {
     static async login(req, res) {
         const { email, password } = req.body;
@@ -32,7 +31,7 @@ class AuthController {
 
             // Generate JWT token
             const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-                expiresIn: '72h' // Token valid for 72 hours
+                expiresIn: '720h' // Token valid for 30 days
             });
 
             res.json({
