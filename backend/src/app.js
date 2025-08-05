@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const pool = require('./config/database');
 const userRoutes = require('./routes/userRoutes');
+const sudokuRoutes = require('./routes/sudokuRoutes');
 const path = require('path');
 
 require('dotenv').config();
@@ -23,6 +24,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/sudoku', sudokuRoutes);
 
 // Test route
 app.get('/', (req, res) => {

@@ -134,13 +134,28 @@ CREATE TABLE IF NOT EXISTS sudoku_players (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS sudoku_scores (
+
+-- Summary table for sudoku stats per player
+CREATE TABLE IF NOT EXISTS sudoku_score (
     id SERIAL PRIMARY KEY,
     player_id INT REFERENCES sudoku_players(id) ON DELETE CASCADE,
-    time_seconds INT NOT NULL,
-    difficulty VARCHAR(20) NOT NULL, -- e.g., 'easy', 'medium', 'hard'
-    no_mistakes BOOLEAN NOT NULL DEFAULT TRUE, -- True if no mistakes made
-    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    best_time_easy INT DEFAULT NULL, -- Best time for easy puzzles
+    best_time_medium INT DEFAULT NULL, -- Best time for medium puzzles
+    best_time_hard INT DEFAULT NULL, -- Best time for hard puzzles
+    best_time_easy_no_mistakes INT DEFAULT NULL, -- Best time for easy puzzles with no mistakes
+    best_time_medium_no_mistakes INT DEFAULT NULL, -- Best time for medium puzzles with no mistakes
+    best_time_hard_no_mistakes INT DEFAULT NULL, -- Best time for hard puzzles with no mistakes
+    total_completed_easy INT DEFAULT 0, -- Total easy puzzles completed
+    total_completed_medium INT DEFAULT 0, -- Total medium puzzles completed
+    total_completed_hard INT DEFAULT 0, -- Total hard puzzles completed
+    total_completed_easy_no_mistakes INT DEFAULT 0, -- Total easy puzzles completed with no mistakes
+    total_completed_medium_no_mistakes INT DEFAULT 0, -- Total medium puzzles completed with no mistakes
+    total_completed_hard_no_mistakes INT DEFAULT 0, -- Total hard puzzles completed with no mistakes
+    total_score INT DEFAULT 0, -- Total points scored
+    score_month INT DEFAULT 0, -- Monthly score
+    score_week INT DEFAULT 0, -- Weekly score
+    score_day INT DEFAULT 0, -- Daily score
+    UNIQUE(player_id) -- Ensure one record per player
 );
 
 CREATE TABLE IF NOT EXISTS sudoku_groups (
@@ -169,6 +184,24 @@ CREATE TABLE IF NOT EXISTS sudoku_player_medals (
     player_id INT REFERENCES sudoku_players(id) ON DELETE CASCADE,
     medal_type VARCHAR(50) NOT NULL, -- e.g., 'fastest_time', 'most_completed'
     description TEXT,
-    number_of_medals INT NOT NULL DEFAULT 0, -- Number of medals of this type awarded
-    awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    number_of_medals INT NOT NULL DEFAULT 0 -- Number of medals of this type awarded
+);
+
+CREATE TABLE IF NOT EXISTS sudoku_leaderboard (
+    id SERIAL PRIMARY KEY,
+    player_id INT REFERENCES sudoku_players(id) ON DELETE CASCADE,
+    period_type VARCHAR(10) NOT NULL, -- 'all', 'month', 'week', 'day'
+    period_start DATE,                -- Start date of the period (NULL for 'all')
+    score INT NOT NULL,               -- Could be number of completed puzzles, fastest time, etc.
+    rank INT NOT NULL                 -- Calculated rank for the period
+);
+
+CREATE TABLE IF NOT EXISTS sudoku_group_leaderboard (
+    id SERIAL PRIMARY KEY,
+    group_id INT REFERENCES sudoku_groups(id) ON DELETE CASCADE,
+    player_id INT REFERENCES sudoku_players(id) ON DELETE CASCADE,
+    period_type VARCHAR(10) NOT NULL, -- 'all', 'month', 'week', 'day'
+    period_start DATE,                -- Start date of the period (NULL for 'all')
+    score INT NOT NULL,
+    rank INT NOT NULL
 );
