@@ -213,7 +213,7 @@ class SudokuModel {
         }
 
         // Filter columns for display
-        return filterColumnsForDisplay(user);
+        return user;
     }
 
     /**

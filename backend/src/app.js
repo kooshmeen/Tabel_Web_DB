@@ -1,4 +1,6 @@
 const express = require('express');
+const https = require('https');
+const fs = require('fs');
 const cors = require('cors');
 const pool = require('./config/database');
 const userRoutes = require('./routes/userRoutes');
@@ -49,7 +51,19 @@ app.get('/health', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+// Start server with HTTPS if SSL certificates are available
+const httpsOptions = {
+    key: fs.readFileSync(path.join(__dirname, 'ssl', 'private-key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, 'ssl', 'certificate.pem'))
+};
+
+// Create HTTPS server
+https.createServer(httpsOptions, app).listen(PORT, () => {
+  console.log(`🚀 Server running on https://localhost:${PORT}`);
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`📱 External access: http://192.168.230.52:${PORT}`);
 });
