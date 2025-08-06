@@ -466,6 +466,89 @@ class SudokuModel {
     }
 
     /**
+     * Reset period scores based on current date
+     * This should be called daily at 00:00 or when server starts
+     * @returns {Promise<void>}
+     */
+    static async resetPeriodScores() {
+        try {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            // Check if we need to reset daily scores (if it's a new day)
+            const lastResetQuery = `
+                SELECT last_daily_reset, last_weekly_reset, last_monthly_reset 
+                FROM sudoku_system_state 
+                WHERE id = 1;
+            `;
+            
+            // Create system state table if it doesn't exist and insert initial record
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS sudoku_system_state (
+                    id INT PRIMARY KEY DEFAULT 1,
+                    last_daily_reset DATE,
+                    last_weekly_reset DATE,
+                    last_monthly_reset DATE,
+                    CONSTRAINT single_row CHECK (id = 1)
+                );
+            `);
+
+            await pool.query(`
+                INSERT INTO sudoku_system_state (id, last_daily_reset, last_weekly_reset, last_monthly_reset)
+                VALUES (1, NULL, NULL, NULL)
+                ON CONFLICT (id) DO NOTHING;
+            `);
+
+            const stateResult = await pool.query(lastResetQuery);
+            const state = stateResult.rows[0];
+
+            const lastDailyReset = state?.last_daily_reset ? new Date(state.last_daily_reset) : null;
+            const lastWeeklyReset = state?.last_weekly_reset ? new Date(state.last_weekly_reset) : null;
+            const lastMonthlyReset = state?.last_monthly_reset ? new Date(state.last_monthly_reset) : null;
+
+            // Reset daily scores if it's a new day
+            if (!lastDailyReset || lastDailyReset < today) {
+                await pool.query(`UPDATE sudoku_score SET score_day = 0;`);
+                await pool.query(`
+                    UPDATE sudoku_system_state 
+                    SET last_daily_reset = $1 
+                    WHERE id = 1;
+                `, [today]);
+                console.log('Daily scores reset');
+            }
+
+            // Reset weekly scores if it's a new week (Sunday)
+            if (!lastWeeklyReset || lastWeeklyReset < startOfWeek) {
+                await pool.query(`UPDATE sudoku_score SET score_week = 0;`);
+                await pool.query(`
+                    UPDATE sudoku_system_state 
+                    SET last_weekly_reset = $1 
+                    WHERE id = 1;
+                `, [startOfWeek]);
+                console.log('Weekly scores reset');
+            }
+
+            // Reset monthly scores if it's a new month
+            if (!lastMonthlyReset || lastMonthlyReset < startOfMonth) {
+                await pool.query(`UPDATE sudoku_score SET score_month = 0;`);
+                await pool.query(`
+                    UPDATE sudoku_system_state 
+                    SET last_monthly_reset = $1 
+                    WHERE id = 1;
+                `, [startOfMonth]);
+                console.log('Monthly scores reset');
+            }
+
+        } catch (error) {
+            console.error('Error resetting period scores:', error);
+            throw new Error('Error resetting period scores');
+        }
+    }
+
+    /**
      * Refresh leaderboard data from sudoku_score table
      * @param {string} periodType - The period type to refresh
      * @param {Date|null} periodStart - The start date of the period
@@ -473,6 +556,9 @@ class SudokuModel {
      */
     static async refreshLeaderboard(periodType, periodStart = null) {
         try {
+            // Reset period scores first to ensure accurate data
+            await this.resetPeriodScores();
+
             // First, clear existing leaderboard data for this period
             const deleteQuery = `
                 DELETE FROM sudoku_leaderboard 
