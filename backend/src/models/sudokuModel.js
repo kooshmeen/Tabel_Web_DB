@@ -466,6 +466,77 @@ class SudokuModel {
     }
 
     /**
+     * Refresh leaderboard data from sudoku_score table
+     * @param {string} periodType - The period type to refresh
+     * @param {Date|null} periodStart - The start date of the period
+     * @returns {Promise<void>}
+     */
+    static async refreshLeaderboard(periodType, periodStart = null) {
+        try {
+            // First, clear existing leaderboard data for this period
+            const deleteQuery = `
+                DELETE FROM sudoku_leaderboard 
+                WHERE period_type = $1 AND (period_start = $2 OR ($2 IS NULL AND period_start IS NULL));
+            `;
+            await pool.query(deleteQuery, [periodType, periodStart]);
+
+            // Build the appropriate score query based on period type
+            let scoreQuery;
+            let scoreValues = [];
+
+            if (periodType === 'all') {
+                scoreQuery = `
+                    SELECT sp.id as player_id, sp.username, ss.total_score as score
+                    FROM sudoku_players sp
+                    JOIN sudoku_score ss ON sp.id = ss.player_id
+                    WHERE ss.total_score > 0
+                    ORDER BY ss.total_score DESC;
+                `;
+            } else if (periodType === 'month') {
+                scoreQuery = `
+                    SELECT sp.id as player_id, sp.username, ss.score_month as score
+                    FROM sudoku_players sp
+                    JOIN sudoku_score ss ON sp.id = ss.player_id
+                    WHERE ss.score_month > 0
+                    ORDER BY ss.score_month DESC;
+                `;
+            } else if (periodType === 'week') {
+                scoreQuery = `
+                    SELECT sp.id as player_id, sp.username, ss.score_week as score
+                    FROM sudoku_players sp
+                    JOIN sudoku_score ss ON sp.id = ss.player_id
+                    WHERE ss.score_week > 0
+                    ORDER BY ss.score_week DESC;
+                `;
+            } else if (periodType === 'day') {
+                scoreQuery = `
+                    SELECT sp.id as player_id, sp.username, ss.score_day as score
+                    FROM sudoku_players sp
+                    JOIN sudoku_score ss ON sp.id = ss.player_id
+                    WHERE ss.score_day > 0
+                    ORDER BY ss.score_day DESC;
+                `;
+            }
+
+            const scoreResult = await pool.query(scoreQuery, scoreValues);
+
+            // Insert the refreshed data into sudoku_leaderboard with rankings
+            for (let i = 0; i < scoreResult.rows.length; i++) {
+                const player = scoreResult.rows[i];
+                const rank = i + 1;
+
+                const insertQuery = `
+                    INSERT INTO sudoku_leaderboard (player_id, period_type, period_start, score, rank)
+                    VALUES ($1, $2, $3, $4, $5);
+                `;
+                await pool.query(insertQuery, [player.player_id, periodType, periodStart, player.score, rank]);
+            }
+        } catch (error) {
+            throw new Error(`Error refreshing leaderboard for ${periodType}: ${error.message}`);
+        }
+    }
+
+    /**
      * Get top N players from global leaderboard for a given period
      * @param {string} periodType
      * @param {Date|null} periodStart
@@ -473,10 +544,15 @@ class SudokuModel {
      * @returns {Promise<Array>}
      */
     static async getTopGlobalLeaderboard(periodType, periodStart = null, limit = 10) {
+        // Refresh the leaderboard data first
+        await this.refreshLeaderboard(periodType, periodStart);
+
         const query = `
-            SELECT * FROM sudoku_leaderboard
-            WHERE period_type = $1 AND (period_start = $2 OR ($2 IS NULL AND period_start IS NULL))
-            ORDER BY score DESC
+            SELECT sl.*, sp.username 
+            FROM sudoku_leaderboard sl
+            JOIN sudoku_players sp ON sl.player_id = sp.id
+            WHERE sl.period_type = $1 AND (sl.period_start = $2 OR ($2 IS NULL AND sl.period_start IS NULL))
+            ORDER BY sl.rank ASC
             LIMIT $3;
         `;
         const values = [periodType, periodStart, limit];
@@ -486,6 +562,45 @@ class SudokuModel {
         } catch (error) {
             throw new Error('Error retrieving global leaderboard');
         }
+    }
+
+    /**
+     * Get top 100 players from global leaderboard for all time
+     * @returns {Promise<Array>}
+     */
+    static async getTop100GlobalAllTime() {
+        return await this.getTopGlobalLeaderboard('all', null, 100);
+    }
+
+    /**
+     * Get top 100 players from global leaderboard for current month
+     * @returns {Promise<Array>}
+     */
+    static async getTop100GlobalMonth() {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return await this.getTopGlobalLeaderboard('month', startOfMonth, 100);
+    }
+
+    /**
+     * Get top 100 players from global leaderboard for current week
+     * @returns {Promise<Array>}
+     */
+    static async getTop100GlobalWeek() {
+        const now = new Date();
+        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+        return await this.getTopGlobalLeaderboard('week', startOfWeek, 100);
+    }
+
+    /**
+     * Get top 100 players from global leaderboard for current day
+     * @returns {Promise<Array>}
+     */
+    static async getTop100GlobalDay() {
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        return await this.getTopGlobalLeaderboard('day', startOfDay, 100);
     }
 
     /**

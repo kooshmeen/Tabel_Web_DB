@@ -236,6 +236,78 @@ class SudokuController {
     }
 
     /**
+     * Get top 100 global all-time leaderboard
+     */
+    static async getTop100GlobalAllTime(req, res) {
+        try {
+            const leaderboard = await SudokuModel.getTop100GlobalAllTime();
+            
+            res.json({
+                leaderboard,
+                periodType: 'all',
+                limit: 100
+            });
+        } catch (error) {
+            console.error('Get top 100 global all-time error:', error);
+            res.status(500).json({ error: 'Error retrieving top 100 global all-time leaderboard' });
+        }
+    }
+
+    /**
+     * Get top 100 global monthly leaderboard
+     */
+    static async getTop100GlobalMonth(req, res) {
+        try {
+            const leaderboard = await SudokuModel.getTop100GlobalMonth();
+            
+            res.json({
+                leaderboard,
+                periodType: 'month',
+                limit: 100
+            });
+        } catch (error) {
+            console.error('Get top 100 global monthly error:', error);
+            res.status(500).json({ error: 'Error retrieving top 100 global monthly leaderboard' });
+        }
+    }
+
+    /**
+     * Get top 100 global weekly leaderboard
+     */
+    static async getTop100GlobalWeek(req, res) {
+        try {
+            const leaderboard = await SudokuModel.getTop100GlobalWeek();
+            
+            res.json({
+                leaderboard,
+                periodType: 'week',
+                limit: 100
+            });
+        } catch (error) {
+            console.error('Get top 100 global weekly error:', error);
+            res.status(500).json({ error: 'Error retrieving top 100 global weekly leaderboard' });
+        }
+    }
+
+    /**
+     * Get top 100 global daily leaderboard
+     */
+    static async getTop100GlobalDay(req, res) {
+        try {
+            const leaderboard = await SudokuModel.getTop100GlobalDay();
+            
+            res.json({
+                leaderboard,
+                periodType: 'day',
+                limit: 100
+            });
+        } catch (error) {
+            console.error('Get top 100 global daily error:', error);
+            res.status(500).json({ error: 'Error retrieving top 100 global daily leaderboard' });
+        }
+    }
+
+    /**
      * Create a new group
      */
     static async createGroup(req, res) {

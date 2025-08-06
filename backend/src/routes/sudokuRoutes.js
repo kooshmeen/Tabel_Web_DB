@@ -11,6 +11,12 @@ router.get('/groups', SudokuController.getAllGroups);
 router.get('/groups/search', SudokuController.searchGroups);
 router.get('/leaderboard/global', SudokuController.getGlobalLeaderboard);
 
+// Specific leaderboard routes
+router.get('/leaderboard/global/all-time', SudokuController.getTop100GlobalAllTime);
+router.get('/leaderboard/global/monthly', SudokuController.getTop100GlobalMonth);
+router.get('/leaderboard/global/weekly', SudokuController.getTop100GlobalWeek);
+router.get('/leaderboard/global/daily', SudokuController.getTop100GlobalDay);
+
 // Protected routes (authentication required)
 router.use(sudokuAuthMiddleware); // All routes below this will require authentication
 
