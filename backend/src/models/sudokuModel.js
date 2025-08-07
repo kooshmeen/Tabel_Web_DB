@@ -391,7 +391,7 @@ class SudokuModel {
             const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
             
             // Calculate score based on difficulty and performance
-            const baseScore = this.calculateGameScore(difficulty, timeSeconds, noMistakes);
+            const baseScore = this.calculateGameScore(difficulty, timeSeconds, numberOfMistakes);
             
             // Prepare field names based on difficulty and mistakes
             const timeField = `best_time_${difficulty}`;
@@ -441,7 +441,7 @@ class SudokuModel {
             ];
             
             await pool.query(query, values);
-            console.log(`Game recorded for player ${playerId} on ${currentDate}: ${difficulty}, ${timeSeconds}s, mistakes: ${numberOfMistakes}`);
+            console.log(`Game recorded for player ${playerId} on ${currentDate}: ${difficulty}, ${timeSeconds}s, mistakes: ${numberOfMistakes}, score: ${baseScore}`);
             
         } catch (error) {
             console.error('Error recording completed game:', error);
@@ -450,28 +450,31 @@ class SudokuModel {
     }
     
     /**
-     * Calculate score based on game performance
+     * Calculate score based on game performance (using original scoring formula)
      * @param {string} difficulty - 'easy', 'medium', 'hard'
      * @param {number} timeSeconds - Time taken to complete
-     * @param {boolean} noMistakes - Whether the game was completed without mistakes
+     * @param {number} numberOfMistakes - Number of mistakes made
      * @returns {number} - Calculated score
      */
-    static calculateGameScore(difficulty, timeSeconds, noMistakes) {
-        // Base scores by difficulty
-        const baseScores = { easy: 10, medium: 20, hard: 30 };
-        let score = baseScores[difficulty] || 10;
-        
-        // Bonus for no mistakes
-        if (noMistakes) {
-            score *= 1.5;
-        }
-        
-        // Time bonus (faster = higher score)
-        // Using a logarithmic scale to prevent extreme scores
-        const timeBonusMultiplier = Math.max(0.5, 2 - Math.log10(timeSeconds / 60));
-        score *= timeBonusMultiplier;
-        
-        return Math.round(score);
+    static calculateGameScore(difficulty, timeSeconds, numberOfMistakes) {
+        const basePoints = 1000; // Base points for any completed game
+        const difficultyMultiplier = {
+            easy: 0.33,
+            medium: 0.7,
+            hard: 1.5
+        }[difficulty] || 1;
+
+        const timeScore = {
+            easy: 600,
+            medium: 1200,
+            hard: 1800
+        }[difficulty] || 600; // Base time score for each difficulty
+
+        const mistakePenalty = Math.max(0.4, 1 - (numberOfMistakes * 0.1)); // Penalty for mistakes, capped at 40% of the score
+
+        const score = Math.round((difficultyMultiplier * mistakePenalty) * (Math.max(0, (timeScore - timeSeconds) * 2) + basePoints)); // Example scoring formula
+
+        return score;
     }
 
     /**
@@ -538,8 +541,8 @@ class SudokuModel {
                 SELECT 
                     sp.id,
                     sp.username,
-                    SUM(sds.daily_score) as total_score,
-                    SUM(sds.games_completed_easy + sds.games_completed_medium + sds.games_completed_hard) as total_games,
+                    COALESCE(SUM(sds.daily_score), 0) as total_score,
+                    COALESCE(SUM(sds.games_completed_easy + sds.games_completed_medium + sds.games_completed_hard), 0) as total_games,
                     MIN(LEAST(
                         NULLIF(sds.best_time_easy, 0),
                         NULLIF(sds.best_time_medium, 0), 
@@ -549,7 +552,7 @@ class SudokuModel {
                 JOIN sudoku_daily_scores sds ON sp.id = sds.player_id
                 ${dateFilter}
                 GROUP BY sp.id, sp.username
-                HAVING SUM(sds.daily_score) > 0
+                HAVING COALESCE(SUM(sds.daily_score), 0) > 0
                 ORDER BY total_score DESC, best_overall_time ASC
                 LIMIT $1
             `;
