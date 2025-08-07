@@ -36,6 +36,7 @@ router.post('/groups', SudokuController.createGroup);
 router.get('/my-groups', SudokuController.getMyGroups);
 router.get('/groups/:groupId', SudokuController.getGroupDetails);
 router.post('/groups/:groupId/join', SudokuController.joinGroup);
+router.post('/groups/:groupId/join-with-password', SudokuController.joinGroupWithPassword);
 router.delete('/groups/:groupId/leave', SudokuController.leaveGroup);
 router.delete('/groups/:groupId', SudokuController.deleteGroup);
 

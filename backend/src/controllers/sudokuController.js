@@ -469,6 +469,46 @@ class SudokuController {
     }
 
     /**
+     * Join a group with password (alternative endpoint for frontend compatibility)
+     */
+    static async joinGroupWithPassword(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { groupId } = req.params;
+            
+            // Extract password from req.body (frontend sends "password" not "group_password")
+            const password = req.body ? req.body.password : undefined;
+
+            const group = await SudokuModel.getGroupById(parseInt(groupId), userId);
+            if (!group) {
+                return res.status(404).json({ 
+                    error: 'Group not found' 
+                });
+            }
+
+            // Check if group has password and verify it
+            if (group.group_password && group.group_password !== password) {
+                return res.status(403).json({ 
+                    error: 'Invalid group password' 
+                });
+            }
+
+            await SudokuModel.addMemberToGroup(parseInt(groupId), userId);
+            
+            res.json({
+                message: 'Successfully joined group'
+            });
+        } catch (error) {
+            console.error('Join group with password error:', error);
+            if (error.message.includes('duplicate')) {
+                res.status(409).json({ error: 'Already a member of this group' });
+            } else {
+                res.status(500).json({ error: 'Error joining group' });
+            }
+        }
+    }
+
+    /**
      * Leave a group
      */
     static async leaveGroup(req, res) {
