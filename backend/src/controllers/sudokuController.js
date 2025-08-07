@@ -341,7 +341,9 @@ class SudokuController {
      */
     static async getAllGroups(req, res) {
         try {
-            const groups = await SudokuModel.getAllGroups();
+            // Get current user ID if authenticated, otherwise null for public view
+            const currentUserId = req.user ? req.user.userId : null;
+            const groups = await SudokuModel.getAllGroups(currentUserId);
             
             res.json({
                 groups
@@ -365,7 +367,9 @@ class SudokuController {
                 });
             }
 
-            const groups = await SudokuModel.searchGroups(searchTerm);
+            // Get current user ID if authenticated, otherwise null for public view
+            const currentUserId = req.user ? req.user.userId : null;
+            const groups = await SudokuModel.searchGroups(searchTerm, currentUserId);
             
             res.json({
                 groups,
@@ -401,8 +405,9 @@ class SudokuController {
     static async getGroupDetails(req, res) {
         try {
             const { groupId } = req.params;
+            const currentUserId = req.user ? req.user.userId : null;
             
-            const group = await SudokuModel.getGroupById(parseInt(groupId));
+            const group = await SudokuModel.getGroupById(parseInt(groupId), currentUserId);
             if (!group) {
                 return res.status(404).json({ 
                     error: 'Group not found' 
@@ -430,9 +435,11 @@ class SudokuController {
         try {
             const userId = req.user.userId;
             const { groupId } = req.params;
-            const { group_password } = req.body;
+            
+            // Safely extract group_password from req.body, defaulting to undefined if req.body is undefined
+            const group_password = req.body ? req.body.group_password : undefined;
 
-            const group = await SudokuModel.getGroupById(parseInt(groupId));
+            const group = await SudokuModel.getGroupById(parseInt(groupId), userId);
             if (!group) {
                 return res.status(404).json({ 
                     error: 'Group not found' 

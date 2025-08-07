@@ -217,16 +217,49 @@ class SudokuModel {
     }
 
     /**
-     * Get all groups
-     * @returns {Promise<Array>} - An array of all groups
+     * Get all groups with additional metadata
+     * @param {number|null} currentUserId - Optional user ID to get user role in groups
+     * @returns {Promise<Array>} - An array of all groups with member count and privacy info
      */
-    static async getAllGroups() {
-        const query = `
-            SELECT * FROM sudoku_groups;
+    static async getAllGroups(currentUserId = null) {
+        let query = `
+            SELECT 
+                g.*,
+                COUNT(gm.player_id) as member_count,
+                CASE WHEN g.group_password IS NOT NULL AND g.group_password != '' THEN true ELSE false END as is_private
+        `;
+        
+        if (currentUserId) {
+            query += `,
+                COALESCE(user_gm.role, null) as user_role
+            `;
+        }
+        
+        query += `
+            FROM sudoku_groups g
+            LEFT JOIN sudoku_group_members gm ON g.id = gm.group_id
+        `;
+        
+        if (currentUserId) {
+            query += `
+                LEFT JOIN sudoku_group_members user_gm ON g.id = user_gm.group_id AND user_gm.player_id = $1
+            `;
+        }
+        
+        query += `
+            GROUP BY g.id`;
+        
+        if (currentUserId) {
+            query += `, user_gm.role`;
+        }
+        
+        query += `
+            ORDER BY g.created_at DESC
         `;
 
         try {
-            const result = await pool.query(query);
+            const values = currentUserId ? [currentUserId] : [];
+            const result = await pool.query(query, values);
             return result.rows;
         } catch (error) {
             throw new Error('Error retrieving all groups');
@@ -265,17 +298,46 @@ class SudokuModel {
     }
 
     /**
-     * Get a group by ID
+     * Get a group by ID with additional metadata
      * @param {number} groupId - The ID of the group to retrieve
-     * @returns {Promise<Object>} - The group object
+     * @param {number|null} currentUserId - Optional user ID to get user role in the group
+     * @returns {Promise<Object>} - The group object with metadata
      */
-    static async getGroupById(groupId) {
-        const query = `
-            SELECT * FROM sudoku_groups WHERE id = $1;
+    static async getGroupById(groupId, currentUserId = null) {
+        let query = `
+            SELECT 
+                g.*,
+                COUNT(gm.player_id) as member_count,
+                CASE WHEN g.group_password IS NOT NULL AND g.group_password != '' THEN true ELSE false END as is_private
         `;
-        const values = [groupId];
+        
+        if (currentUserId) {
+            query += `,
+                COALESCE(user_gm.role, null) as user_role
+            `;
+        }
+        
+        query += `
+            FROM sudoku_groups g
+            LEFT JOIN sudoku_group_members gm ON g.id = gm.group_id
+        `;
+        
+        if (currentUserId) {
+            query += `
+                LEFT JOIN sudoku_group_members user_gm ON g.id = user_gm.group_id AND user_gm.player_id = $2
+            `;
+        }
+        
+        query += `
+            WHERE g.id = $1
+            GROUP BY g.id`;
+        
+        if (currentUserId) {
+            query += `, user_gm.role`;
+        }
 
         try {
+            const values = currentUserId ? [groupId, currentUserId] : [groupId];
             const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
@@ -779,15 +841,23 @@ class SudokuModel {
     }
 
     /**
-     * List all groups a player is a member of
+     * List all groups a player is a member of with additional metadata
      * @param {number} playerId
      * @returns {Promise<Array>}
      */
     static async getGroupsForPlayer(playerId) {
         const query = `
-            SELECT g.* FROM sudoku_groups g
+            SELECT 
+                g.*,
+                COUNT(all_gm.player_id) as member_count,
+                CASE WHEN g.group_password IS NOT NULL AND g.group_password != '' THEN true ELSE false END as is_private,
+                m.role as user_role
+            FROM sudoku_groups g
             JOIN sudoku_group_members m ON g.id = m.group_id
-            WHERE m.player_id = $1;
+            LEFT JOIN sudoku_group_members all_gm ON g.id = all_gm.group_id
+            WHERE m.player_id = $1
+            GROUP BY g.id, m.role
+            ORDER BY g.created_at DESC
         `;
         const values = [playerId];
         try {
@@ -799,15 +869,50 @@ class SudokuModel {
     }
 
     /**
-     * Search groups by name or description
+     * Search groups by name or description with additional metadata
      * @param {string} searchTerm
+     * @param {number|null} currentUserId - Optional user ID to get user role in groups
      * @returns {Promise<Array>}
      */
-    static async searchGroups(searchTerm) {
-        const query = `
-            SELECT * FROM sudoku_groups WHERE group_name ILIKE $1 OR group_description ILIKE $1;
+    static async searchGroups(searchTerm, currentUserId = null) {
+        let query = `
+            SELECT 
+                g.*,
+                COUNT(gm.player_id) as member_count,
+                CASE WHEN g.group_password IS NOT NULL AND g.group_password != '' THEN true ELSE false END as is_private
         `;
-        const values = [`%${searchTerm}%`];
+        
+        if (currentUserId) {
+            query += `,
+                COALESCE(user_gm.role, null) as user_role
+            `;
+        }
+        
+        query += `
+            FROM sudoku_groups g
+            LEFT JOIN sudoku_group_members gm ON g.id = gm.group_id
+        `;
+        
+        if (currentUserId) {
+            query += `
+                LEFT JOIN sudoku_group_members user_gm ON g.id = user_gm.group_id AND user_gm.player_id = $2
+            `;
+        }
+        
+        query += `
+            WHERE g.group_name ILIKE $1 OR g.group_description ILIKE $1
+            GROUP BY g.id`;
+        
+        if (currentUserId) {
+            query += `, user_gm.role`;
+        }
+        
+        query += `
+            ORDER BY g.created_at DESC
+        `;
+        
+        const values = currentUserId ? [`%${searchTerm}%`, currentUserId] : [`%${searchTerm}%`];
+        
         try {
             const result = await pool.query(query, values);
             return result.rows;
