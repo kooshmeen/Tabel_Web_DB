@@ -378,277 +378,236 @@ class SudokuModel {
     }
 
     /**
-     * Add or update score in global leaderboard
-     * @param {number} playerId - The ID of the player
-     * @param {number} score - The score to add
-     * @param {string} periodType - The type of period (e.g., 'all', 'month', 'week', 'day')
-     * @param {Date} periodStart - The start date of the period (NULL for 'all')
-     * @returns {Promise<void>} - Resolves when the score is added or updated
-     */
-    static async upsertScoreToLeaderboard(playerId, score, periodType, periodStart = null) {
-        const query = `
-            INSERT INTO sudoku_leaderboard (player_id, period_type, period_start, score)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (player_id, period_type, period_start)
-            DO UPDATE SET score = EXCLUDED.score;
-        `;
-        const values = [playerId, periodType, periodStart, score];
-
-        try {
-            await pool.query(query, values);
-        } catch (error) {
-            throw new Error('Error adding/updating score to leaderboard');
-        }
-    }
-
-    /**
-     * Add or update score in group leaderboard
-     * @param {number} groupId - The ID of the group
-     * @param {number} playerId - The ID of the player
-     * @param {number} score - The score to add
-     * @param {string} periodType - The type of period (e.g., 'all', 'month', 'week', 'day')
-     * @param {Date} periodStart - The start date of the period (NULL for 'all')
-     * @returns {Promise<void>} - Resolves when the score is added or updated
-     */
-    static async upsertScoreToGroupLeaderboard(groupId, playerId, score, periodType, periodStart = null) {
-        const query = `
-            INSERT INTO sudoku_group_leaderboard (group_id, player_id, period_type, period_start, score)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (group_id, player_id, period_type, period_start)
-            DO UPDATE SET score = EXCLUDED.score;
-        `;
-        const values = [groupId, playerId, periodType, periodStart, score];
-
-        try {
-            await pool.query(query, values);
-        } catch (error) {
-            throw new Error('Error adding/updating score to group leaderboard');
-        }
-    }
-
-    /**
-     * Record a completed sudoku game
+     * Record a completed sudoku game using the new daily-based approach
      * @param {number} playerId
      * @param {number} timeSeconds
      * @param {string} difficulty
-     * @param {boolean} noMistakes
+     * @param {number} numberOfMistakes
      * @returns {Promise<void>}
      */
-    static async recordCompletedGame(playerId, timeSeconds, difficulty, noMistakes) {
-        const query = `
-            INSERT INTO sudoku_scores (player_id, time_seconds, difficulty, no_mistakes)
-            VALUES ($1, $2, $3, $4);
-        `;
-        const values = [playerId, timeSeconds, difficulty, noMistakes];
+    static async recordCompletedGame(playerId, timeSeconds, difficulty, numberOfMistakes) {
         try {
+            const noMistakes = numberOfMistakes === 0;
+            const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            // Calculate score based on difficulty and performance
+            const baseScore = this.calculateGameScore(difficulty, timeSeconds, noMistakes);
+            
+            // Prepare field names based on difficulty and mistakes
+            const timeField = `best_time_${difficulty}`;
+            const timeNoMistakesField = `best_time_${difficulty}_no_mistakes`;
+            const gamesField = `games_completed_${difficulty}`;
+            const gamesNoMistakesField = `games_completed_${difficulty}_no_mistakes`;
+            
+            // Use ON CONFLICT to either insert new record or update existing one for the same day
+            const query = `
+                INSERT INTO sudoku_daily_scores (
+                    player_id, 
+                    play_date, 
+                    ${timeField},
+                    ${timeNoMistakesField},
+                    ${gamesField},
+                    ${gamesNoMistakesField},
+                    daily_score
+                ) VALUES (
+                    $1, $2, $3, $4, 1, $5, $6
+                )
+                ON CONFLICT (player_id, play_date) 
+                DO UPDATE SET
+                    ${timeField} = CASE 
+                        WHEN sudoku_daily_scores.${timeField} IS NULL OR $3 < sudoku_daily_scores.${timeField}
+                        THEN $3 
+                        ELSE sudoku_daily_scores.${timeField}
+                    END,
+                    ${timeNoMistakesField} = CASE 
+                        WHEN $7 = true AND (sudoku_daily_scores.${timeNoMistakesField} IS NULL OR $3 < sudoku_daily_scores.${timeNoMistakesField})
+                        THEN $3 
+                        ELSE sudoku_daily_scores.${timeNoMistakesField}
+                    END,
+                    ${gamesField} = sudoku_daily_scores.${gamesField} + 1,
+                    ${gamesNoMistakesField} = sudoku_daily_scores.${gamesNoMistakesField} + $5,
+                    daily_score = sudoku_daily_scores.daily_score + $6,
+                    updated_at = CURRENT_TIMESTAMP
+            `;
+            
+            const values = [
+                playerId,
+                currentDate,
+                timeSeconds,
+                noMistakes ? timeSeconds : null,
+                noMistakes ? 1 : 0,
+                baseScore,
+                noMistakes
+            ];
+            
             await pool.query(query, values);
+            console.log(`Game recorded for player ${playerId} on ${currentDate}: ${difficulty}, ${timeSeconds}s, mistakes: ${numberOfMistakes}`);
+            
         } catch (error) {
+            console.error('Error recording completed game:', error);
             throw new Error('Error recording completed game');
         }
     }
+    
+    /**
+     * Calculate score based on game performance
+     * @param {string} difficulty - 'easy', 'medium', 'hard'
+     * @param {number} timeSeconds - Time taken to complete
+     * @param {boolean} noMistakes - Whether the game was completed without mistakes
+     * @returns {number} - Calculated score
+     */
+    static calculateGameScore(difficulty, timeSeconds, noMistakes) {
+        // Base scores by difficulty
+        const baseScores = { easy: 10, medium: 20, hard: 30 };
+        let score = baseScores[difficulty] || 10;
+        
+        // Bonus for no mistakes
+        if (noMistakes) {
+            score *= 1.5;
+        }
+        
+        // Time bonus (faster = higher score)
+        // Using a logarithmic scale to prevent extreme scores
+        const timeBonusMultiplier = Math.max(0.5, 2 - Math.log10(timeSeconds / 60));
+        score *= timeBonusMultiplier;
+        
+        return Math.round(score);
+    }
 
     /**
-     * Get all scores for a player
+     * Get all daily scores for a player
      * @param {number} playerId
+     * @param {number} limit - Optional limit for recent entries
      * @returns {Promise<Array>}
      */
-    static async getScoresForPlayer(playerId) {
-        const query = `
-            SELECT * FROM sudoku_scores WHERE player_id = $1 ORDER BY completed_at DESC;
+    static async getScoresForPlayer(playerId, limit = null) {
+        let query = `
+            SELECT * FROM sudoku_daily_scores 
+            WHERE player_id = $1 
+            ORDER BY play_date DESC
         `;
         const values = [playerId];
+        
+        if (limit) {
+            query += ` LIMIT $2`;
+            values.push(limit);
+        }
+        
         try {
             const result = await pool.query(query, values);
             return result.rows;
         } catch (error) {
+            console.error('Error retrieving scores for player:', error);
             throw new Error('Error retrieving scores for player');
         }
     }
 
     /**
-     * Reset period scores based on current date
-     * This should be called daily at 00:00 or when server starts
-     * @returns {Promise<void>}
-     */
-    static async resetPeriodScores() {
-        try {
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-            // Check if we need to reset daily scores (if it's a new day)
-            const lastResetQuery = `
-                SELECT last_daily_reset, last_weekly_reset, last_monthly_reset 
-                FROM sudoku_system_state 
-                WHERE id = 1;
-            `;
-            
-            // Create system state table if it doesn't exist and insert initial record
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS sudoku_system_state (
-                    id INT PRIMARY KEY DEFAULT 1,
-                    last_daily_reset DATE,
-                    last_weekly_reset DATE,
-                    last_monthly_reset DATE,
-                    CONSTRAINT single_row CHECK (id = 1)
-                );
-            `);
-
-            await pool.query(`
-                INSERT INTO sudoku_system_state (id, last_daily_reset, last_weekly_reset, last_monthly_reset)
-                VALUES (1, NULL, NULL, NULL)
-                ON CONFLICT (id) DO NOTHING;
-            `);
-
-            const stateResult = await pool.query(lastResetQuery);
-            const state = stateResult.rows[0];
-
-            const lastDailyReset = state?.last_daily_reset ? new Date(state.last_daily_reset) : null;
-            const lastWeeklyReset = state?.last_weekly_reset ? new Date(state.last_weekly_reset) : null;
-            const lastMonthlyReset = state?.last_monthly_reset ? new Date(state.last_monthly_reset) : null;
-
-            // Reset daily scores if it's a new day
-            if (!lastDailyReset || lastDailyReset < today) {
-                await pool.query(`UPDATE sudoku_score SET score_day = 0;`);
-                await pool.query(`
-                    UPDATE sudoku_system_state 
-                    SET last_daily_reset = $1 
-                    WHERE id = 1;
-                `, [today]);
-                console.log('Daily scores reset');
-            }
-
-            // Reset weekly scores if it's a new week (Sunday)
-            if (!lastWeeklyReset || lastWeeklyReset < startOfWeek) {
-                await pool.query(`UPDATE sudoku_score SET score_week = 0;`);
-                await pool.query(`
-                    UPDATE sudoku_system_state 
-                    SET last_weekly_reset = $1 
-                    WHERE id = 1;
-                `, [startOfWeek]);
-                console.log('Weekly scores reset');
-            }
-
-            // Reset monthly scores if it's a new month
-            if (!lastMonthlyReset || lastMonthlyReset < startOfMonth) {
-                await pool.query(`UPDATE sudoku_score SET score_month = 0;`);
-                await pool.query(`
-                    UPDATE sudoku_system_state 
-                    SET last_monthly_reset = $1 
-                    WHERE id = 1;
-                `, [startOfMonth]);
-                console.log('Monthly scores reset');
-            }
-
-        } catch (error) {
-            console.error('Error resetting period scores:', error);
-            throw new Error('Error resetting period scores');
-        }
-    }
-
-    /**
-     * Refresh leaderboard data from sudoku_score table
-     * @param {string} periodType - The period type to refresh
-     * @param {Date|null} periodStart - The start date of the period
-     * @returns {Promise<void>}
-     */
-    static async refreshLeaderboard(periodType, periodStart = null) {
-        try {
-            // Reset period scores first to ensure accurate data
-            await this.resetPeriodScores();
-
-            // First, clear existing leaderboard data for this period
-            const deleteQuery = `
-                DELETE FROM sudoku_leaderboard 
-                WHERE period_type = $1 AND (period_start = $2 OR ($2 IS NULL AND period_start IS NULL));
-            `;
-            await pool.query(deleteQuery, [periodType, periodStart]);
-
-            // Build the appropriate score query based on period type
-            let scoreQuery;
-            let scoreValues = [];
-
-            if (periodType === 'all') {
-                scoreQuery = `
-                    SELECT sp.id as player_id, sp.username, ss.total_score as score
-                    FROM sudoku_players sp
-                    JOIN sudoku_score ss ON sp.id = ss.player_id
-                    WHERE ss.total_score > 0
-                    ORDER BY ss.total_score DESC;
-                `;
-            } else if (periodType === 'month') {
-                scoreQuery = `
-                    SELECT sp.id as player_id, sp.username, ss.score_month as score
-                    FROM sudoku_players sp
-                    JOIN sudoku_score ss ON sp.id = ss.player_id
-                    WHERE ss.score_month > 0
-                    ORDER BY ss.score_month DESC;
-                `;
-            } else if (periodType === 'week') {
-                scoreQuery = `
-                    SELECT sp.id as player_id, sp.username, ss.score_week as score
-                    FROM sudoku_players sp
-                    JOIN sudoku_score ss ON sp.id = ss.player_id
-                    WHERE ss.score_week > 0
-                    ORDER BY ss.score_week DESC;
-                `;
-            } else if (periodType === 'day') {
-                scoreQuery = `
-                    SELECT sp.id as player_id, sp.username, ss.score_day as score
-                    FROM sudoku_players sp
-                    JOIN sudoku_score ss ON sp.id = ss.player_id
-                    WHERE ss.score_day > 0
-                    ORDER BY ss.score_day DESC;
-                `;
-            }
-
-            const scoreResult = await pool.query(scoreQuery, scoreValues);
-
-            // Insert the refreshed data into sudoku_leaderboard with rankings
-            for (let i = 0; i < scoreResult.rows.length; i++) {
-                const player = scoreResult.rows[i];
-                const rank = i + 1;
-
-                const insertQuery = `
-                    INSERT INTO sudoku_leaderboard (player_id, period_type, period_start, score, rank)
-                    VALUES ($1, $2, $3, $4, $5);
-                `;
-                await pool.query(insertQuery, [player.player_id, periodType, periodStart, player.score, rank]);
-            }
-        } catch (error) {
-            throw new Error(`Error refreshing leaderboard for ${periodType}: ${error.message}`);
-        }
-    }
-
-    /**
-     * Get top N players from global leaderboard for a given period
-     * @param {string} periodType
-     * @param {Date|null} periodStart
-     * @param {number} limit
+     * Get top N players from global leaderboard for a given period using daily scores
+     * @param {string} periodType - 'all', 'month', 'week', 'day'
+     * @param {Date|null} periodStart - The start date of the period (calculated if null)
+     * @param {number} limit - Number of top players to return
      * @returns {Promise<Array>}
      */
     static async getTopGlobalLeaderboard(periodType, periodStart = null, limit = 10) {
-        // Refresh the leaderboard data first
-        await this.refreshLeaderboard(periodType, periodStart);
-
-        const query = `
-            SELECT sl.*, sp.username 
-            FROM sudoku_leaderboard sl
-            JOIN sudoku_players sp ON sl.player_id = sp.id
-            WHERE sl.period_type = $1 AND (sl.period_start = $2 OR ($2 IS NULL AND sl.period_start IS NULL))
-            ORDER BY sl.rank ASC
-            LIMIT $3;
-        `;
-        const values = [periodType, periodStart, limit];
         try {
+            let dateFilter = '';
+            const values = [limit];
+            
+            if (periodType !== 'all') {
+                if (!periodStart) {
+                    const now = new Date();
+                    switch (periodType) {
+                        case 'day':
+                            periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            break;
+                        case 'week':
+                            periodStart = new Date(now);
+                            periodStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+                            break;
+                        case 'month':
+                            periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                            break;
+                    }
+                }
+                dateFilter = 'WHERE sds.play_date >= $2';
+                values.push(periodStart.toISOString().split('T')[0]);
+            }
+            
+            const query = `
+                SELECT 
+                    sp.id,
+                    sp.username,
+                    SUM(sds.daily_score) as total_score,
+                    SUM(sds.games_completed_easy + sds.games_completed_medium + sds.games_completed_hard) as total_games,
+                    MIN(LEAST(
+                        NULLIF(sds.best_time_easy, 0),
+                        NULLIF(sds.best_time_medium, 0), 
+                        NULLIF(sds.best_time_hard, 0)
+                    )) as best_overall_time
+                FROM sudoku_players sp
+                JOIN sudoku_daily_scores sds ON sp.id = sds.player_id
+                ${dateFilter}
+                GROUP BY sp.id, sp.username
+                HAVING SUM(sds.daily_score) > 0
+                ORDER BY total_score DESC, best_overall_time ASC
+                LIMIT $1
+            `;
+            
             const result = await pool.query(query, values);
-            return result.rows;
+            
+            // Add rank to each player
+            return result.rows.map((player, index) => ({
+                ...player,
+                rank: index + 1
+            }));
+            
         } catch (error) {
+            console.error('Error getting global leaderboard:', error);
             throw new Error('Error retrieving global leaderboard');
         }
     }
+
+        /**
+     * Get top 100 players from global leaderboard for all time
+     * @returns {Promise<Array>}
+     */
+    static async getTop100GlobalAllTime() {
+        return await this.getTopGlobalLeaderboard('all', null, 100);
+    }
+
+    /**
+     * Get top 100 players from global leaderboard for current month
+     * @returns {Promise<Array>}
+     */
+    static async getTop100GlobalMonth() {
+        return await this.getTopGlobalLeaderboard('month', null, 100);
+    }
+
+    /**
+     * Get top 100 players from global leaderboard for current week
+     * @returns {Promise<Array>}
+     */
+    static async getTop100GlobalWeek() {
+        return await this.getTopGlobalLeaderboard('week', null, 100);
+    }
+
+    /**
+     * Get top 100 players from global leaderboard for current day
+     * @returns {Promise<Array>}
+     */
+    static async getTop100GlobalDay() {
+        return await this.getTopGlobalLeaderboard('day', null, 100);
+    }
+
+    /**
+     * Get top N players from group leaderboard for a given period using daily scores
+     * @param {number} groupId
+     * @param {string} periodType - 'all', 'month', 'week', 'day'
+     * @param {Date|null} periodStart - The start date of the period (calculated if null)
+     * @param {number} limit - Number of top players to return
+     * @returns {Promise<Array>}
+     */
 
     /**
      * Get top 100 players from global leaderboard for all time
@@ -690,25 +649,69 @@ class SudokuModel {
     }
 
     /**
-     * Get top N players from group leaderboard for a given period
+     * Get top N players from group leaderboard for a given period using daily scores
      * @param {number} groupId
-     * @param {string} periodType
-     * @param {Date|null} periodStart
-     * @param {number} limit
+     * @param {string} periodType - 'all', 'month', 'week', 'day'
+     * @param {Date|null} periodStart - The start date of the period (calculated if null)
+     * @param {number} limit - Number of top players to return
      * @returns {Promise<Array>}
      */
     static async getTopGroupLeaderboard(groupId, periodType, periodStart = null, limit = 10) {
-        const query = `
-            SELECT * FROM sudoku_group_leaderboard
-            WHERE group_id = $1 AND period_type = $2 AND (period_start = $3 OR ($3 IS NULL AND period_start IS NULL))
-            ORDER BY score DESC
-            LIMIT $4;
-        `;
-        const values = [groupId, periodType, periodStart, limit];
         try {
+            let dateFilter = '';
+            const values = [groupId, limit];
+            
+            if (periodType !== 'all') {
+                if (!periodStart) {
+                    const now = new Date();
+                    switch (periodType) {
+                        case 'day':
+                            periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            break;
+                        case 'week':
+                            periodStart = new Date(now);
+                            periodStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+                            break;
+                        case 'month':
+                            periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                            break;
+                    }
+                }
+                dateFilter = 'AND sds.play_date >= $3';
+                values.push(periodStart.toISOString().split('T')[0]);
+            }
+            
+            const query = `
+                SELECT 
+                    sp.id,
+                    sp.username,
+                    SUM(sds.daily_score) as total_score,
+                    SUM(sds.games_completed_easy + sds.games_completed_medium + sds.games_completed_hard) as total_games,
+                    MIN(LEAST(
+                        NULLIF(sds.best_time_easy, 0),
+                        NULLIF(sds.best_time_medium, 0), 
+                        NULLIF(sds.best_time_hard, 0)
+                    )) as best_overall_time
+                FROM sudoku_players sp
+                JOIN sudoku_group_members sgm ON sp.id = sgm.player_id
+                JOIN sudoku_daily_scores sds ON sp.id = sds.player_id
+                WHERE sgm.group_id = $1 ${dateFilter}
+                GROUP BY sp.id, sp.username
+                HAVING SUM(sds.daily_score) > 0
+                ORDER BY total_score DESC, best_overall_time ASC
+                LIMIT $2
+            `;
+            
             const result = await pool.query(query, values);
-            return result.rows;
+            
+            // Add rank to each player
+            return result.rows.map((player, index) => ({
+                ...player,
+                rank: index + 1
+            }));
+            
         } catch (error) {
+            console.error('Error getting group leaderboard:', error);
             throw new Error('Error retrieving group leaderboard');
         }
     }
@@ -811,154 +814,86 @@ class SudokuModel {
     }
 
     /**
-     * Get statistics for a player (total puzzles solved, average time, etc.)
+     * Get statistics for a player using the new daily scores system
      * @param {number} playerId
      * @returns {Promise<Object>}
      */
     static async getPlayerStatistics(playerId) {
-        const query = `
-            SELECT COUNT(*) AS total_solved,
-                   AVG(time_seconds) AS avg_time,
-                   SUM(CASE WHEN no_mistakes THEN 1 ELSE 0 END) AS no_mistake_count
-            FROM sudoku_scores WHERE player_id = $1;
-        `;
-        const values = [playerId];
         try {
+            const query = `
+                SELECT 
+                    COUNT(*) as days_played,
+                    SUM(games_completed_easy + games_completed_medium + games_completed_hard) as total_games_completed,
+                    SUM(games_completed_easy) as total_easy_completed,
+                    SUM(games_completed_medium) as total_medium_completed,
+                    SUM(games_completed_hard) as total_hard_completed,
+                    SUM(games_completed_easy_no_mistakes + games_completed_medium_no_mistakes + games_completed_hard_no_mistakes) as total_no_mistake_games,
+                    SUM(daily_score) as total_score,
+                    MIN(LEAST(
+                        NULLIF(best_time_easy, 0),
+                        NULLIF(best_time_medium, 0), 
+                        NULLIF(best_time_hard, 0)
+                    )) as best_overall_time,
+                    MIN(NULLIF(best_time_easy, 0)) as best_time_easy,
+                    MIN(NULLIF(best_time_medium, 0)) as best_time_medium,
+                    MIN(NULLIF(best_time_hard, 0)) as best_time_hard,
+                    AVG(NULLIF(best_time_easy, 0)) as avg_time_easy,
+                    AVG(NULLIF(best_time_medium, 0)) as avg_time_medium,
+                    AVG(NULLIF(best_time_hard, 0)) as avg_time_hard
+                FROM sudoku_daily_scores 
+                WHERE player_id = $1
+            `;
+            const values = [playerId];
+            
             const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
+            console.error('Error retrieving player statistics:', error);
             throw new Error('Error retrieving player statistics');
         }
     }
 
     /**
-     * Get statistics for a group (total puzzles solved by members, average time, etc.)
+     * Get statistics for a group using the new daily scores system
      * @param {number} groupId
      * @returns {Promise<Object>}
      */
     static async getGroupStatistics(groupId) {
-        const query = `
-            SELECT COUNT(*) AS total_solved,
-                   AVG(s.time_seconds) AS avg_time,
-                   SUM(CASE WHEN s.no_mistakes THEN 1 ELSE 0 END) AS no_mistake_count
-            FROM sudoku_scores s
-            JOIN sudoku_group_members m ON s.player_id = m.player_id
-            WHERE m.group_id = $1;
-        `;
-        const values = [groupId];
         try {
+            const query = `
+                SELECT 
+                    COUNT(DISTINCT sds.player_id) as active_members,
+                    COUNT(*) as total_play_days,
+                    SUM(sds.games_completed_easy + sds.games_completed_medium + sds.games_completed_hard) as total_games_completed,
+                    SUM(sds.games_completed_easy) as total_easy_completed,
+                    SUM(sds.games_completed_medium) as total_medium_completed,
+                    SUM(sds.games_completed_hard) as total_hard_completed,
+                    SUM(sds.games_completed_easy_no_mistakes + sds.games_completed_medium_no_mistakes + sds.games_completed_hard_no_mistakes) as total_no_mistake_games,
+                    SUM(sds.daily_score) as total_group_score,
+                    MIN(LEAST(
+                        NULLIF(sds.best_time_easy, 0),
+                        NULLIF(sds.best_time_medium, 0), 
+                        NULLIF(sds.best_time_hard, 0)
+                    )) as best_overall_time,
+                    AVG(LEAST(
+                        NULLIF(sds.best_time_easy, 0),
+                        NULLIF(sds.best_time_medium, 0), 
+                        NULLIF(sds.best_time_hard, 0)
+                    )) as avg_best_time
+                FROM sudoku_daily_scores sds
+                JOIN sudoku_group_members sgm ON sds.player_id = sgm.player_id
+                WHERE sgm.group_id = $1
+            `;
+            const values = [groupId];
+            
             const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
+            console.error('Error retrieving group statistics:', error);
             throw new Error('Error retrieving group statistics');
         }
     }
 
-    /**
-     * Submits completed game for a logged in player
-     * Updates the score, leaderboard, statistics, best time (if applicable)
-     * @param {number} playerId - The ID of the player
-     * @param {number} timeSeconds - The time taken to complete the game in seconds
-     * @param {string} difficulty - The difficulty level of the game (e.g., 'easy', 'medium', 'hard')
-     * @param {number} numberOfMistakes - The number of mistakes made during the game
-     * @returns {Promise<void>}
-     */
-    static async submitCompletedGame(playerId, timeSeconds, difficulty, numberOfMistakes) {
-        try {
-            // Calculate score based on difficulty and time
-            const basePoints = 1000; // Base points for any completed game
-            const difficultyMultiplier = {
-                easy: 0.33,
-                medium: 0.7,
-                hard: 1.5
-            }[difficulty] || 1;
-
-            const timeScore = {
-                easy: 600,
-                medium: 1200,
-                hard: 1800
-            }[difficulty] || 600; // Base time score for each difficulty
-
-            const mistakePenalty = Math.max(0.4, 1 - (numberOfMistakes * 0.1)); // Penalty for mistakes, capped at 40% of the score
-
-            const score = Math.round((difficultyMultiplier * mistakePenalty) * (Math.max(0, (timeScore - timeSeconds) * 2) + basePoints)); // Example scoring formula
-
-            const noMistakes = numberOfMistakes === 0;
-
-            // Get current date for period calculations
-            const now = new Date();
-            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const startOfWeek = new Date(startOfDay);
-            startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-            // Upsert to sudoku_score table
-            const query = `
-                INSERT INTO sudoku_score (
-                    player_id, 
-                    best_time_${difficulty}, 
-                    best_time_${difficulty}_no_mistakes,
-                    total_completed_${difficulty},
-                    total_completed_${difficulty}_no_mistakes,
-                    total_score,
-                    score_month,
-                    score_week,
-                    score_day
-                )
-                VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8)
-                ON CONFLICT (player_id) DO UPDATE SET
-                    best_time_${difficulty} = CASE 
-                        WHEN sudoku_score.best_time_${difficulty} IS NULL OR sudoku_score.best_time_${difficulty} > EXCLUDED.best_time_${difficulty}
-                        THEN EXCLUDED.best_time_${difficulty}
-                        ELSE sudoku_score.best_time_${difficulty}
-                    END,
-                    best_time_${difficulty}_no_mistakes = CASE 
-                        WHEN $4 = 1 AND (sudoku_score.best_time_${difficulty}_no_mistakes IS NULL OR sudoku_score.best_time_${difficulty}_no_mistakes > EXCLUDED.best_time_${difficulty}_no_mistakes)
-                        THEN EXCLUDED.best_time_${difficulty}_no_mistakes
-                        ELSE sudoku_score.best_time_${difficulty}_no_mistakes
-                    END,
-                    total_completed_${difficulty} = sudoku_score.total_completed_${difficulty} + 1,
-                    total_completed_${difficulty}_no_mistakes = sudoku_score.total_completed_${difficulty}_no_mistakes + $4,
-                    total_score = sudoku_score.total_score + EXCLUDED.total_score,
-                    score_month = sudoku_score.score_month + EXCLUDED.score_month,
-                    score_week = sudoku_score.score_week + EXCLUDED.score_week,
-                    score_day = sudoku_score.score_day + EXCLUDED.score_day;
-            `;
-
-            const values = [
-                playerId,
-                timeSeconds,
-                noMistakes ? timeSeconds : null,
-                noMistakes ? 1 : 0,
-                score,
-                score, // score_month
-                score, // score_week
-                score  // score_day
-            ];
-
-            await pool.query(query, values);
-
-            // Update global leaderboard
-            await this.upsertScoreToLeaderboard(playerId, score, 'all');
-
-            // Update period-based leaderboards
-            await this.upsertScoreToLeaderboard(playerId, score, 'day', startOfDay);
-            await this.upsertScoreToLeaderboard(playerId, score, 'week', startOfWeek);
-            await this.upsertScoreToLeaderboard(playerId, score, 'month', startOfMonth);
-
-            // Update group leaderboards if player is in a group
-            const groups = await this.getGroupsForPlayer(playerId);
-            for (const group of groups) {
-                await this.upsertScoreToGroupLeaderboard(group.id, playerId, score, 'all');
-                await this.upsertScoreToGroupLeaderboard(group.id, playerId, score, 'day', startOfDay);
-                await this.upsertScoreToGroupLeaderboard(group.id, playerId, score, 'week', startOfWeek);
-                await this.upsertScoreToGroupLeaderboard(group.id, playerId, score, 'month', startOfMonth);
-            }
-
-        } catch (error) {
-            throw new Error('Error submitting completed game: ' + error.message);
-        }
-    }
 }
 
 module.exports = SudokuModel;

@@ -13,29 +13,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize periodic reset on server start
+// Initialize server (no longer needed for resets with new daily system)
 async function initializeServer() {
-    try {
-        await SudokuModel.resetPeriodScores();
-        console.log('✅ Period scores initialized/reset');
-        
-        // Set up daily reset at midnight
-        const now = new Date();
-        const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-        const msUntilMidnight = tomorrow.getTime() - now.getTime();
-        
-        setTimeout(() => {
-            // Reset at midnight, then every 24 hours
-            SudokuModel.resetPeriodScores();
-            setInterval(() => {
-                SudokuModel.resetPeriodScores();
-            }, 24 * 60 * 60 * 1000); // 24 hours in milliseconds
-        }, msUntilMidnight);
-        
-        console.log(`⏰ Daily reset scheduled for midnight (${msUntilMidnight}ms from now)`);
-    } catch (error) {
-        console.error('❌ Error initializing server:', error);
-    }
+    console.log('🎯 Daily scoring system initialized - no periodic resets needed!');
 }
 
 // Middleware
@@ -77,22 +57,30 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Start server with HTTPS if SSL certificates are available
-const httpsOptions = {
-    key: fs.readFileSync(path.join(__dirname, 'ssl', 'private-key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'ssl', 'certificate.pem'))
-};
+// Start both HTTP and HTTPS servers on different ports
+const HTTP_PORT = process.env.PORT || 3000;
+const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 
-// Create HTTPS server
-https.createServer(httpsOptions, app).listen(PORT, () => {
-  console.log(`🚀 Server running on https://localhost:${PORT}`);
-});
+// Start HTTPS server
+try {
+    const httpsOptions = {
+        key: fs.readFileSync(path.join(__dirname, 'ssl', 'private-key.pem')),
+        cert: fs.readFileSync(path.join(__dirname, 'ssl', 'certificate.pem'))
+    };
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`📱 External access: http://192.168.230.52:${PORT}`);
+    https.createServer(httpsOptions, app).listen(HTTPS_PORT, () => {
+        console.log(`� HTTPS Server running on https://localhost:${HTTPS_PORT}`);
+    });
+} catch (error) {
+    console.log('⚠️  SSL certificates not found, HTTPS server not started');
+}
+
+// Start HTTP server
+app.listen(HTTP_PORT, '0.0.0.0', () => {
+    console.log(`🚀 HTTP Server running on http://0.0.0.0:${HTTP_PORT}`);
+    console.log(`📊 Health check: http://localhost:${HTTP_PORT}/health`);
+    console.log(`📱 External access: http://192.168.230.52:${HTTP_PORT}`);
     
-    // Initialize period score resets
+    // Initialize server
     initializeServer();
 });

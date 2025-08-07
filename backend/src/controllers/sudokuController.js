@@ -151,7 +151,7 @@ class SudokuController {
                 });
             }
 
-            await SudokuModel.submitCompletedGame(userId, timeSeconds, difficulty, numberOfMistakes);
+            await SudokuModel.recordCompletedGame(userId, timeSeconds, difficulty, numberOfMistakes);
             
             res.json({
                 message: 'Game submitted successfully'
