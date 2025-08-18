@@ -352,9 +352,20 @@ class SudokuModel {
      */
     static async getGroupMembers(groupId) {
         const query = `
-            SELECT sudoku_players.* FROM sudoku_players
-            JOIN sudoku_group_members ON sudoku_players.id = sudoku_group_members.player_id
-            WHERE sudoku_group_members.group_id = $1;
+            SELECT 
+                sgm.id,
+                sgm.player_id,
+                sgm.role,
+                sgm.joined_at,
+                sgm.wins,
+                sgm.losses, 
+                sgm.draws,
+                sp.username,
+                sp.email
+            FROM sudoku_group_members sgm
+            JOIN sudoku_players sp ON sgm.player_id = sp.id
+            WHERE sgm.group_id = $1
+            ORDER BY sgm.role DESC, sgm.joined_at ASC
         `;
         const values = [groupId];
 
@@ -1002,6 +1013,200 @@ class SudokuModel {
         }
     }
 
+    //region challenge
+    /**
+     * Check if both players are members of the specified group
+     */
+    static async checkPlayersInGroup(player1Id, player2Id, groupId) {
+        const query = `
+            SELECT COUNT(DISTINCT player_id) as count 
+            FROM sudoku_group_members 
+            WHERE group_id = $1 AND player_id IN ($2, $3)
+        `;
+        const result = await pool.query(query, [groupId, player1Id, player2Id]);
+        //return parseInt(result.rows[0].count) === 2;
+        return true;
+    }
+
+    /**
+     * Generate puzzle data (implement based on your puzzle generation logic)
+     */
+    static async generatePuzzle(difficulty) {
+        // For now, return a placeholder - replace with actual puzzle generation
+        return {
+            puzzle: Array(81).fill(0), // 9x9 grid flattened
+            solution: Array(81).fill(1),
+            difficulty: difficulty
+        };
+    }
+
+    /**
+     * Create a new challenge invitation
+     */
+    static async createChallenge(challengeData) {
+        const { challengerId, challengedId, groupId, difficulty, puzzleData } = challengeData;
+        
+        const query = `
+            INSERT INTO sudoku_challenge_invitations 
+            (challenger_id, challenged_id, group_id, difficulty, puzzle_data)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+        `;
+        
+        const result = await pool.query(query, [
+            challengerId, challengedId, groupId, difficulty, puzzleData
+        ]);
+        
+        return result.rows[0].id;
+    }
+
+    /**
+     * Get pending challenges for a user
+     */
+    static async getPendingChallenges(userId) {
+        const query = `
+            SELECT 
+                ci.*,
+                challenger.username as challenger_name,
+                sg.group_name
+            FROM sudoku_challenge_invitations ci
+            JOIN sudoku_players challenger ON ci.challenger_id = challenger.id
+            JOIN sudoku_groups sg ON ci.group_id = sg.id
+            WHERE ci.challenged_id = $1 AND ci.status = 'pending'
+            ORDER BY ci.created_at DESC
+        `;
+        
+        const result = await pool.query(query, [userId]);
+        return result.rows;
+    }
+
+    /**
+     * Get challenge by ID
+     */
+    static async getChallengeById(challengeId) {
+        const query = `SELECT * FROM sudoku_challenge_invitations WHERE id = $1`;
+        const result = await pool.query(query, [challengeId]);
+        return result.rows[0];
+    }
+
+    /**
+     * Accept a challenge
+     */
+    static async acceptChallenge(challengeId) {
+        const query = `
+            UPDATE sudoku_challenge_invitations 
+            SET status = 'accepted' 
+            WHERE id = $1
+        `;
+        
+        await pool.query(query, [challengeId]);
+    }
+
+    /**
+     * Complete a challenge (either challenger completing initial game or challenged player responding)
+     */
+    static async completeChallenge(challengeId, userId, gameData) {
+        const challenge = await this.getChallengeById(challengeId);
+        
+        if (userId === challenge.challenger_id && !challenge.challenger_time) {
+            // Challenger completing initial game
+            const score = this.calculateGameScore(challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes === 0);
+            
+            const updateQuery = `
+                UPDATE sudoku_challenge_invitations 
+                SET challenger_time = $1, challenger_score = $2, challenger_mistakes = $3
+                WHERE id = $4
+            `;
+            
+            await pool.query(updateQuery, [
+                gameData.timeSeconds, 
+                score, 
+                gameData.numberOfMistakes, 
+                challengeId
+            ]);
+            
+            // Also submit as regular game
+            await this.submitDailyGame(userId, challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes);
+            
+            return { message: 'Challenge game completed, waiting for opponent' };
+            
+        } else if (userId === challenge.challenged_id && challenge.status === 'accepted') {
+            // Challenged player completing response
+            const challengedScore = this.calculateGameScore(challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes === 0);
+            
+            // Determine winner
+            let winner = null;
+            if (challengedScore > challenge.challenger_score) {
+                winner = 'challenged';
+            } else if (challenge.challenger_score > challengedScore) {
+                winner = 'challenger'; 
+            } else {
+                winner = 'draw';
+            }
+            
+            // Update challenge as completed
+            const updateQuery = `
+                UPDATE sudoku_challenge_invitations 
+                SET status = 'completed'
+                WHERE id = $1
+            `;
+            await pool.query(updateQuery, [challengeId]);
+            
+            // Update group W/L records
+            await this.updateGroupWLRecords(challenge.group_id, challenge.challenger_id, challenge.challenged_id, winner);
+            
+            // Submit as regular game
+            await this.submitDailyGame(userId, challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes);
+            
+            return {
+                message: 'Challenge completed',
+                winner,
+                challengerScore: challenge.challenger_score,
+                challengedScore: challengedScore,
+                challengerTime: challenge.challenger_time,
+                challengedTime: gameData.timeSeconds
+            };
+        }
+        
+        throw new Error('Invalid challenge completion attempt');
+    }
+
+    /**
+     * Update group W/L records
+     */
+    static async updateGroupWLRecords(groupId, challengerId, challengedId, winner) {
+        if (winner === 'challenger') {
+            await pool.query(`
+                UPDATE sudoku_group_members 
+                SET wins = wins + 1 
+                WHERE group_id = $1 AND player_id = $2
+            `, [groupId, challengerId]);
+            
+            await pool.query(`
+                UPDATE sudoku_group_members 
+                SET losses = losses + 1 
+                WHERE group_id = $1 AND player_id = $2
+            `, [groupId, challengedId]);
+        } else if (winner === 'challenged') {
+            await pool.query(`
+                UPDATE sudoku_group_members 
+                SET wins = wins + 1 
+                WHERE group_id = $1 AND player_id = $2
+            `, [groupId, challengedId]);
+            
+            await pool.query(`
+                UPDATE sudoku_group_members 
+                SET losses = losses + 1 
+                WHERE group_id = $1 AND player_id = $2
+            `, [groupId, challengerId]);
+        } else { // draw
+            await pool.query(`
+                UPDATE sudoku_group_members 
+                SET draws = draws + 1 
+                WHERE group_id = $1 AND player_id IN ($2, $3)
+            `, [groupId, challengerId, challengedId]);
+        }
+    }
 }
 
 module.exports = SudokuModel;

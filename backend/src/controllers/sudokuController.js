@@ -658,6 +658,126 @@ class SudokuController {
             res.status(500).json({ error: 'Error awarding medal' });
         }
     }
+
+    //region challenge
+    /**
+     * Create a challenge invitation (offline 1v1)
+     * POST /api/sudoku/groups/:groupId/challenge
+     */
+    static async createChallenge(req, res) {
+        try {
+            const challengerId = req.user.userId;
+            const { groupId } = req.params;
+            const { challengedId, difficulty } = req.body;
+            
+            // Validate inputs
+            if (!challengedId || !difficulty) {
+                return res.status(400).json({ error: 'challengedId and difficulty are required' });
+            }
+            
+            if (!['easy', 'medium', 'hard'].includes(difficulty)) {
+                return res.status(400).json({ error: 'Invalid difficulty' });
+            }
+            
+            // Check if both players are in the group
+            const areInGroup = await SudokuModel.checkPlayersInGroup(challengerId, challengedId, groupId);
+            if (!areInGroup) {
+                return res.status(403).json({ error: 'Both players must be in the group' });
+            }
+            
+            // Generate puzzle (you'll need to implement puzzle generation)
+            const puzzleData = await SudokuModel.generatePuzzle(difficulty);
+            
+            const challengeId = await SudokuModel.createChallenge({
+                challengerId,
+                challengedId, 
+                groupId,
+                difficulty,
+                puzzleData: JSON.stringify(puzzleData)
+            });
+            
+            res.json({ 
+                message: 'Challenge created successfully',
+                challengeId 
+            });
+        } catch (error) {
+            console.error('Create challenge error:', error);
+            res.status(500).json({ error: 'Error creating challenge' });
+        }
+    }
+
+    /**
+     * Get pending challenges for current user
+     * GET /api/sudoku/challenges/pending
+     */
+    static async getPendingChallenges(req, res) {
+        try {
+            const userId = req.user.userId;
+            const challenges = await SudokuModel.getPendingChallenges(userId);
+            res.json({ challenges });
+        } catch (error) {
+            console.error('Get pending challenges error:', error);
+            res.status(500).json({ error: 'Error fetching challenges' });
+        }
+    }
+
+    /**
+     * Accept a challenge and start the game
+     * POST /api/sudoku/challenges/:challengeId/accept
+     */
+    static async acceptChallenge(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { challengeId } = req.params;
+            
+            const challenge = await SudokuModel.getChallengeById(challengeId);
+            if (!challenge) {
+                return res.status(404).json({ error: 'Challenge not found' });
+            }
+            
+            if (challenge.challenged_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized to accept this challenge' });
+            }
+            
+            if (challenge.status !== 'pending') {
+                return res.status(400).json({ error: 'Challenge is no longer pending' });
+            }
+            
+            await SudokuModel.acceptChallenge(challengeId);
+            
+            res.json({ 
+                message: 'Challenge accepted',
+                puzzleData: JSON.parse(challenge.puzzle_data),
+                challengerTime: challenge.challenger_time,
+                difficulty: challenge.difficulty
+            });
+        } catch (error) {
+            console.error('Accept challenge error:', error);
+            res.status(500).json({ error: 'Error accepting challenge' });
+        }
+    }
+
+    /**
+     * Complete a challenge (submit challenger's game or challenged player's response)
+     * POST /api/sudoku/challenges/:challengeId/complete
+     */
+    static async completeChallenge(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { challengeId } = req.params;
+            const { timeSeconds, numberOfMistakes } = req.body;
+            
+            const result = await SudokuModel.completeChallenge(challengeId, userId, {
+                timeSeconds,
+                numberOfMistakes
+            });
+            
+            res.json(result);
+        } catch (error) {
+            console.error('Complete challenge error:', error);
+            res.status(500).json({ error: 'Error completing challenge' });
+        }
+    }
 }
 
 module.exports = SudokuController;

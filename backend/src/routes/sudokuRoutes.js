@@ -49,4 +49,10 @@ router.put('/groups/:groupId/members/:memberId/role', SudokuController.setMember
 // Admin routes (for awarding medals - could be restricted further with admin middleware)
 router.post('/players/:playerId/medals', SudokuController.awardMedal);
 
+// Challenge routes
+router.post('/groups/:groupId/challenge', SudokuController.createChallenge);
+router.get('/challenges/pending', SudokuController.getPendingChallenges);
+router.post('/challenges/:challengeId/accept', SudokuController.acceptChallenge);
+router.post('/challenges/:challengeId/complete', SudokuController.completeChallenge);
+
 module.exports = router;
