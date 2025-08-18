@@ -661,22 +661,28 @@ class SudokuController {
 
     //region challenge
     /**
-     * Create a challenge invitation (offline 1v1)
+     * Create a challenge invitation (with type selection)
      * POST /api/sudoku/groups/:groupId/challenge
      */
     static async createChallenge(req, res) {
         try {
             const challengerId = req.user.userId;
             const { groupId } = req.params;
-            const { challengedId, difficulty } = req.body;
+            const { challengedId, difficulty, challengeType } = req.body; // Add challengeType
             
             // Validate inputs
-            if (!challengedId || !difficulty) {
-                return res.status(400).json({ error: 'challengedId and difficulty are required' });
+            if (!challengedId || !difficulty || !challengeType) {
+                return res.status(400).json({ 
+                    error: 'challengedId, difficulty, and challengeType are required' 
+                });
             }
             
             if (!['easy', 'medium', 'hard'].includes(difficulty)) {
                 return res.status(400).json({ error: 'Invalid difficulty' });
+            }
+            
+            if (!['online', 'offline'].includes(challengeType)) {
+                return res.status(400).json({ error: 'Challenge type must be online or offline' });
             }
             
             // Check if both players are in the group
@@ -685,21 +691,42 @@ class SudokuController {
                 return res.status(403).json({ error: 'Both players must be in the group' });
             }
             
-            // Generate puzzle (you'll need to implement puzzle generation)
+            // Generate puzzle data
             const puzzleData = await SudokuModel.generatePuzzle(difficulty);
             
-            const challengeId = await SudokuModel.createChallenge({
-                challengerId,
-                challengedId, 
-                groupId,
-                difficulty,
-                puzzleData: JSON.stringify(puzzleData)
-            });
-            
-            res.json({ 
-                message: 'Challenge created successfully',
-                challengeId 
-            });
+            if (challengeType === 'offline') {
+                // For offline challenges, create invitation and return puzzle for challenger to play
+                const challengeId = await SudokuModel.createChallenge({
+                    challengerId,
+                    challengedId, 
+                    groupId,
+                    difficulty,
+                    challengeType,
+                    puzzleData: JSON.stringify(puzzleData)
+                });
+                
+                res.json({ 
+                    message: 'Offline challenge created',
+                    challengeId,
+                    puzzleData, // Return puzzle for challenger to play immediately
+                    requiresChallengerCompletion: true
+                });
+            } else {
+                // For online challenges, create live match
+                const matchId = await SudokuModel.createLiveMatch({
+                    challengerId,
+                    challengedId,
+                    groupId,
+                    difficulty,
+                    puzzleData: JSON.stringify(puzzleData)
+                });
+                
+                res.json({ 
+                    message: 'Online challenge created',
+                    matchId,
+                    status: 'waiting_for_acceptance'
+                });
+            }
         } catch (error) {
             console.error('Create challenge error:', error);
             res.status(500).json({ error: 'Error creating challenge' });
@@ -776,6 +803,124 @@ class SudokuController {
         } catch (error) {
             console.error('Complete challenge error:', error);
             res.status(500).json({ error: 'Error completing challenge' });
+        }
+    }
+
+    /**
+     * Reject a challenge
+     * POST /api/sudoku/challenges/:challengeId/reject
+     */
+    static async rejectChallenge(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { challengeId } = req.params;
+            
+            const challenge = await SudokuModel.getChallengeById(challengeId);
+            if (!challenge) {
+                return res.status(404).json({ error: 'Challenge not found' });
+            }
+            
+            if (challenge.challenged_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized to reject this challenge' });
+            }
+            
+            if (challenge.status !== 'pending') {
+                return res.status(400).json({ error: 'Challenge is no longer pending' });
+            }
+            
+            await SudokuModel.rejectChallenge(challengeId);
+            
+            res.json({ message: 'Challenge rejected successfully' });
+        } catch (error) {
+            console.error('Reject challenge error:', error);
+            res.status(500).json({ error: 'Error rejecting challenge' });
+        }
+    }
+
+    /**
+     * Complete challenger's part of offline challenge
+     * POST /api/sudoku/challenges/:challengeId/complete-challenger
+     */
+    static async completeChallengerGame(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { challengeId } = req.params;
+            const { timeSeconds, numberOfMistakes } = req.body;
+            
+            const challenge = await SudokuModel.getChallengeById(challengeId);
+            if (!challenge) {
+                return res.status(404).json({ error: 'Challenge not found' });
+            }
+            
+            if (challenge.challenger_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized' });
+            }
+            
+            if (challenge.status !== 'pending') {
+                return res.status(400).json({ error: 'Challenge is no longer pending' });
+            }
+            
+            const score = SudokuModel.calculateGameScore(challenge.difficulty, timeSeconds, numberOfMistakes === 0);
+            
+            await SudokuModel.updateChallengerCompletion(challengeId, timeSeconds, score, numberOfMistakes);
+            
+            // Submit as regular game
+            await SudokuModel.submitDailyGame(userId, challenge.difficulty, timeSeconds, numberOfMistakes);
+            
+            res.json({ 
+                message: 'Challenger game completed, challenge sent to opponent',
+                timeSeconds,
+                score
+            });
+        } catch (error) {
+            console.error('Complete challenger game error:', error);
+            res.status(500).json({ error: 'Error completing challenger game' });
+        }
+    }
+
+    /**
+     * Get pending live matches for current user
+     * GET /api/sudoku/matches/pending
+     */
+    static async getPendingLiveMatches(req, res) {
+        try {
+            const userId = req.user.userId;
+            const matches = await SudokuModel.getPendingLiveMatches(userId);
+            res.json({ matches });
+        } catch (error) {
+            console.error('Get pending live matches error:', error);
+            res.status(500).json({ error: 'Error fetching live matches' });
+        }
+    }
+
+    /**
+     * Accept a live match
+     * POST /api/sudoku/matches/:matchId/accept
+     */
+    static async acceptLiveMatch(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { matchId } = req.params;
+            
+            const match = await SudokuModel.getLiveMatchById(matchId);
+            if (!match) {
+                return res.status(404).json({ error: 'Match not found' });
+            }
+            
+            if (match.challenged_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized to accept this match' });
+            }
+            
+            const updatedMatch = await SudokuModel.acceptLiveMatch(matchId);
+            
+            res.json({ 
+                message: 'Live match accepted',
+                puzzleData: JSON.parse(updatedMatch.puzzle_data),
+                matchId: updatedMatch.id
+            });
+        } catch (error) {
+            console.error('Accept live match error:', error);
+            res.status(500).json({ error: 'Error accepting live match' });
         }
     }
 }

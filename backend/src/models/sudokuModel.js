@@ -1041,13 +1041,33 @@ class SudokuModel {
     }
 
     /**
-     * Create a new challenge invitation
-     */
+     * Create a new challenge invitation with type support
+    */
     static async createChallenge(challengeData) {
-        const { challengerId, challengedId, groupId, difficulty, puzzleData } = challengeData;
+        const { challengerId, challengedId, groupId, difficulty, challengeType, puzzleData } = challengeData;
         
         const query = `
             INSERT INTO sudoku_challenge_invitations 
+            (challenger_id, challenged_id, group_id, difficulty, puzzle_data, challenge_type)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id
+        `;
+        
+        const result = await pool.query(query, [
+            challengerId, challengedId, groupId, difficulty, puzzleData, challengeType || 'offline'
+        ]);
+        
+        return result.rows[0].id;
+    }
+
+    /**
+     * Create a live match for online challenges
+     */
+    static async createLiveMatch(matchData) {
+        const { challengerId, challengedId, groupId, difficulty, puzzleData } = matchData;
+        
+        const query = `
+            INSERT INTO sudoku_live_matches 
             (challenger_id, challenged_id, group_id, difficulty, puzzle_data)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id
@@ -1058,6 +1078,80 @@ class SudokuModel {
         ]);
         
         return result.rows[0].id;
+    }
+
+    /**
+     * Get pending live matches for a user
+     */
+    static async getPendingLiveMatches(userId) {
+        const query = `
+            SELECT 
+                lm.*,
+                challenger.username as challenger_name,
+                sg.group_name
+            FROM sudoku_live_matches lm
+            JOIN sudoku_players challenger ON lm.challenger_id = challenger.id
+            JOIN sudoku_groups sg ON lm.group_id = sg.id
+            WHERE lm.challenged_id = $1 AND lm.status = 'pending'
+            ORDER BY lm.created_at DESC
+        `;
+        
+        const result = await pool.query(query, [userId]);
+        return result.rows;
+    }
+
+    /**
+     * Accept a live match
+     */
+    static async acceptLiveMatch(matchId) {
+        const query = `
+            UPDATE sudoku_live_matches 
+            SET status = 'active' 
+            WHERE id = $1
+            RETURNING *
+        `;
+        
+        const result = await pool.query(query, [matchId]);
+        return result.rows[0];
+    }
+
+    /**
+     * Reject a challenge or live match
+     */
+    static async rejectChallenge(challengeId) {
+        const query = `
+            UPDATE sudoku_challenge_invitations 
+            SET status = 'rejected' 
+            WHERE id = $1
+        `;
+        
+        await pool.query(query, [challengeId]);
+    }
+
+    /**
+     * Reject a live match
+     */
+    static async rejectLiveMatch(matchId) {
+        const query = `
+            UPDATE sudoku_live_matches 
+            SET status = 'rejected' 
+            WHERE id = $1
+        `;
+        
+        await pool.query(query, [matchId]);
+    }
+
+    /**
+     * Update challenger completion for offline challenges
+     */
+    static async updateChallengerCompletion(challengeId, timeSeconds, score, mistakes) {
+        const query = `
+            UPDATE sudoku_challenge_invitations 
+            SET challenger_time = $1, challenger_score = $2, challenger_mistakes = $3, status = 'challenger_completed'
+            WHERE id = $4
+        `;
+        
+        await pool.query(query, [timeSeconds, score, mistakes, challengeId]);
     }
 
     /**

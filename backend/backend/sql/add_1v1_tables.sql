@@ -31,3 +31,10 @@ ALTER TABLE sudoku_group_members
 ADD COLUMN wins INT DEFAULT 0,
 ADD COLUMN losses INT DEFAULT 0,
 ADD COLUMN draws INT DEFAULT 0;
+
+-- Add challenge_type column to existing table
+ALTER TABLE sudoku_challenge_invitations 
+ADD COLUMN IF NOT EXISTS challenge_type VARCHAR(10) DEFAULT 'offline';
+
+-- Update status enum to include new states
+-- The status can now be: pending, accepted, completed, rejected, challenger_completed
