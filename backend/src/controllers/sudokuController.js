@@ -838,14 +838,14 @@ class SudokuController {
     }
 
     /**
-     * Complete challenger's part of offline challenge
+     * Complete challenger's game and update puzzle data
      * POST /api/sudoku/challenges/:challengeId/complete-challenger
-     */
+    */
     static async completeChallengerGame(req, res) {
         try {
             const userId = req.user.userId;
             const { challengeId } = req.params;
-            const { timeSeconds, numberOfMistakes } = req.body;
+            const { timeSeconds, numberOfMistakes, puzzleData } = req.body;
             
             const challenge = await SudokuModel.getChallengeById(challengeId);
             if (!challenge) {
@@ -853,25 +853,17 @@ class SudokuController {
             }
             
             if (challenge.challenger_id !== userId) {
-                return res.status(403).json({ error: 'Not authorized' });
+                return res.status(403).json({ error: 'Not authorized to complete this challenge' });
             }
             
-            if (challenge.status !== 'pending') {
-                return res.status(400).json({ error: 'Challenge is no longer pending' });
-            }
-            
-            const score = SudokuModel.calculateGameScore(challenge.difficulty, timeSeconds, numberOfMistakes === 0);
-            
-            await SudokuModel.updateChallengerCompletion(challengeId, timeSeconds, score, numberOfMistakes);
-            
-            // Submit as regular game
-            await SudokuModel.submitDailyGame(userId, challenge.difficulty, timeSeconds, numberOfMistakes);
-            
-            res.json({ 
-                message: 'Challenger game completed, challenge sent to opponent',
+            // Calculate score and update challenge with puzzle data
+            const result = await SudokuModel.completeChallengerGameWithPuzzle(challengeId, {
                 timeSeconds,
-                score
+                numberOfMistakes,
+                puzzleData
             });
+            
+            res.json(result);
         } catch (error) {
             console.error('Complete challenger game error:', error);
             res.status(500).json({ error: 'Error completing challenger game' });

@@ -53,13 +53,13 @@ router.post('/players/:playerId/medals', SudokuController.awardMedal);
 router.post('/groups/:groupId/challenge', SudokuController.createChallenge);
 router.get('/challenges/pending', SudokuController.getPendingChallenges);
 router.post('/challenges/:challengeId/accept', SudokuController.acceptChallenge);
-router.post('/challenges/:challengeId/reject', SudokuController.rejectChallenge); // NEW
+router.post('/challenges/:challengeId/reject', SudokuController.rejectChallenge); 
 router.post('/challenges/:challengeId/complete', SudokuController.completeChallenge);
-router.post('/challenges/:challengeId/complete-challenger', SudokuController.completeChallengerGame); // NEW
+router.post('/challenges/:challengeId/complete-challenger', SudokuController.completeChallengerGame);
 
 // Live match routes
-router.get('/matches/pending', SudokuController.getPendingLiveMatches); // NEW
-router.post('/matches/:matchId/accept', SudokuController.acceptLiveMatch); // NEW
-router.post('/matches/:matchId/reject', SudokuController.rejectChallenge); // NEW
+router.get('/matches/pending', SudokuController.getPendingLiveMatches);
+router.post('/matches/:matchId/accept', SudokuController.acceptLiveMatch);
+router.post('/matches/:matchId/reject', SudokuController.rejectChallenge);
 
 module.exports = router;

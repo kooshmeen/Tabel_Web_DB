@@ -1041,20 +1041,23 @@ class SudokuModel {
     }
 
     /**
-     * Create a new challenge invitation with type support
-    */
+     * Create a new challenge invitation (pending challenger completion)
+     */
     static async createChallenge(challengeData) {
-        const { challengerId, challengedId, groupId, difficulty, challengeType, puzzleData } = challengeData;
+        const { challengerId, challengedId, groupId, difficulty } = challengeData;
         
         const query = `
             INSERT INTO sudoku_challenge_invitations 
-            (challenger_id, challenged_id, group_id, difficulty, puzzle_data, challenge_type)
+            (challenger_id, challenged_id, group_id, difficulty, puzzle_data, status)
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id
         `;
         
+        // Create with empty puzzle data and 'challenger_playing' status
         const result = await pool.query(query, [
-            challengerId, challengedId, groupId, difficulty, puzzleData, challengeType || 'offline'
+            challengerId, challengedId, groupId, difficulty, 
+            JSON.stringify({ puzzle: [], solution: [], difficulty }), 
+            'challenger_playing'
         ]);
         
         return result.rows[0].id;
@@ -1252,13 +1255,16 @@ class SudokuModel {
             // Submit as regular game
             await this.submitDailyGame(userId, challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes);
             
-            return {
-                message: 'Challenge completed',
-                winner,
+            // At the end of the challenged player completion logic:
+            // Delete the completed challenge
+            const deleteQuery = `DELETE FROM sudoku_challenge_invitations WHERE id = $1`;
+            await pool.query(deleteQuery, [challengeId]);
+
+            return { 
+                message: 'Challenge completed successfully', 
+                winner: winner,
                 challengerScore: challenge.challenger_score,
-                challengedScore: challengedScore,
-                challengerTime: challenge.challenger_time,
-                challengedTime: gameData.timeSeconds
+                challengedScore: challengedScore 
             };
         }
         
@@ -1266,40 +1272,81 @@ class SudokuModel {
     }
 
     /**
-     * Update group W/L records
+     * Update group W/L records and delete completed challenge
      */
     static async updateGroupWLRecords(groupId, challengerId, challengedId, winner) {
-        if (winner === 'challenger') {
-            await pool.query(`
-                UPDATE sudoku_group_members 
-                SET wins = wins + 1 
-                WHERE group_id = $1 AND player_id = $2
-            `, [groupId, challengerId]);
+        const client = await pool.connect();
+        
+        try {
+            await client.query('BEGIN');
             
-            await pool.query(`
-                UPDATE sudoku_group_members 
-                SET losses = losses + 1 
-                WHERE group_id = $1 AND player_id = $2
-            `, [groupId, challengedId]);
-        } else if (winner === 'challenged') {
-            await pool.query(`
-                UPDATE sudoku_group_members 
-                SET wins = wins + 1 
-                WHERE group_id = $1 AND player_id = $2
-            `, [groupId, challengedId]);
+            if (winner === 'challenger') {
+                // Challenger wins
+                await client.query(
+                    'UPDATE sudoku_group_members SET wins = wins + 1 WHERE group_id = $1 AND player_id = $2',
+                    [groupId, challengerId]
+                );
+                await client.query(
+                    'UPDATE sudoku_group_members SET losses = losses + 1 WHERE group_id = $1 AND player_id = $2',
+                    [groupId, challengedId]
+                );
+            } else if (winner === 'challenged') {
+                // Challenged wins
+                await client.query(
+                    'UPDATE sudoku_group_members SET wins = wins + 1 WHERE group_id = $1 AND player_id = $2',
+                    [groupId, challengedId]
+                );
+                await client.query(
+                    'UPDATE sudoku_group_members SET losses = losses + 1 WHERE group_id = $1 AND player_id = $2',
+                    [groupId, challengerId]
+                );
+            } else {
+                // Draw
+                await client.query(
+                    'UPDATE sudoku_group_members SET draws = draws + 1 WHERE group_id = $1 AND player_id = $2',
+                    [groupId, challengerId]
+                );
+                await client.query(
+                    'UPDATE sudoku_group_members SET draws = draws + 1 WHERE group_id = $1 AND player_id = $2',
+                    [groupId, challengedId]
+                );
+            }
             
-            await pool.query(`
-                UPDATE sudoku_group_members 
-                SET losses = losses + 1 
-                WHERE group_id = $1 AND player_id = $2
-            `, [groupId, challengerId]);
-        } else { // draw
-            await pool.query(`
-                UPDATE sudoku_group_members 
-                SET draws = draws + 1 
-                WHERE group_id = $1 AND player_id IN ($2, $3)
-            `, [groupId, challengerId, challengedId]);
+            await client.query('COMMIT');
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
         }
+    }
+
+    /**
+     * Complete challenger's game and make challenge available to challenged player
+     */
+    static async completeChallengerGameWithPuzzle(challengeId, gameData) {
+        const challenge = await this.getChallengeById(challengeId);
+        const score = this.calculateGameScore(challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes === 0);
+        
+        const updateQuery = `
+            UPDATE sudoku_challenge_invitations 
+            SET challenger_time = $1, 
+                challenger_score = $2, 
+                challenger_mistakes = $3,
+                puzzle_data = $4,
+                status = 'pending'
+            WHERE id = $5
+        `;
+        
+        await pool.query(updateQuery, [
+            gameData.timeSeconds, 
+            score, 
+            gameData.numberOfMistakes,
+            JSON.stringify(gameData.puzzleData),
+            challengeId
+        ]);
+        
+        return { message: 'Challenge completed and sent to challenged player' };
     }
 }
 
