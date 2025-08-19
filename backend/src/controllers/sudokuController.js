@@ -4,18 +4,18 @@ const pool = require('../config/database');
 
 class SudokuController {
     /**
-     * Register a new sudoku player
-     */
+    * Register a new sudoku player
+    */
     static async register(req, res) {
         try {
             const { username, email, password } = req.body;
-
+            
             if (!username || !email || !password) {
                 return res.status(400).json({ 
                     error: 'Username, email, and password are required' 
                 });
             }
-
+            
             // Check if user already exists
             const existingUser = await SudokuModel.getUserByEmail(email);
             if (existingUser) {
@@ -23,7 +23,7 @@ class SudokuController {
                     error: 'User with this email already exists' 
                 });
             }
-
+            
             const user = await SudokuModel.createUser({ username, email, password });
             
             // Remove password from response
@@ -38,34 +38,34 @@ class SudokuController {
             res.status(500).json({ error: 'Error registering user' });
         }
     }
-
+    
     /**
-     * Login a sudoku player
-     */
+    * Login a sudoku player
+    */
     static async login(req, res) {
         try {
             const { email, password } = req.body;
-
+            
             if (!email || !password) {
                 return res.status(400).json({ 
                     error: 'Email and password are required' 
                 });
             }
-
+            
             const user = await SudokuModel.authenticateUser(email, password);
             if (!user) {
                 return res.status(401).json({ 
                     error: 'Invalid email or password' 
                 });
             }
-
+            
             // Generate JWT token
             const token = jwt.sign(
                 { userId: user.id, email: user.email },
                 process.env.JWT_SECRET || 'your-secret-key',
                 { expiresIn: '24h' }
             );
-
+            
             res.json({
                 message: 'Login successful',
                 token,
@@ -76,21 +76,21 @@ class SudokuController {
             res.status(500).json({ error: 'Error logging in' });
         }
     }
-
+    
     /**
-     * Update user profile
-     */
+    * Update user profile
+    */
     static async updateProfile(req, res) {
         try {
             const userId = req.user.userId;
             const { username } = req.body;
-
+            
             if (!username) {
                 return res.status(400).json({ 
                     error: 'Username is required' 
                 });
             }
-
+            
             const updatedUser = await SudokuModel.updateUser(userId, { username });
             
             // Remove password from response
@@ -105,21 +105,21 @@ class SudokuController {
             res.status(500).json({ error: 'Error updating profile' });
         }
     }
-
+    
     /**
-     * Change user password
-     */
+    * Change user password
+    */
     static async changePassword(req, res) {
         try {
             const userId = req.user.userId;
             const { newPassword } = req.body;
-
+            
             if (!newPassword) {
                 return res.status(400).json({ 
                     error: 'New password is required' 
                 });
             }
-
+            
             await SudokuModel.changePassword(userId, newPassword);
             
             res.json({
@@ -130,27 +130,27 @@ class SudokuController {
             res.status(500).json({ error: 'Error changing password' });
         }
     }
-
+    
     /**
-     * Submit a completed game
-     */
+    * Submit a completed game
+    */
     static async submitGame(req, res) {
         try {
             const userId = req.user.userId;
             const { timeSeconds, difficulty, numberOfMistakes } = req.body;
-
+            
             if (!timeSeconds || !difficulty || numberOfMistakes === undefined) {
                 return res.status(400).json({ 
                     error: 'Time, difficulty, and numberOfMistakes are required' 
                 });
             }
-
+            
             if (!['easy', 'medium', 'hard'].includes(difficulty)) {
                 return res.status(400).json({ 
                     error: 'Difficulty must be easy, medium, or hard' 
                 });
             }
-
+            
             await SudokuModel.recordCompletedGame(userId, timeSeconds, difficulty, numberOfMistakes);
             
             res.json({
@@ -161,10 +161,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error submitting game' });
         }
     }
-
+    
     /**
-     * Get player statistics
-     */
+    * Get player statistics
+    */
     static async getPlayerStats(req, res) {
         try {
             const userId = req.user.userId;
@@ -179,10 +179,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving player statistics' });
         }
     }
-
+    
     /**
-     * Get player medals
-     */
+    * Get player medals
+    */
     static async getPlayerMedals(req, res) {
         try {
             const userId = req.user.userId;
@@ -197,10 +197,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving player medals' });
         }
     }
-
+    
     /**
-     * Get global leaderboard
-     */
+    * Get global leaderboard
+    */
     static async getGlobalLeaderboard(req, res) {
         try {
             const { periodType = 'all', limit = 10 } = req.query;
@@ -234,10 +234,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving global leaderboard' });
         }
     }
-
+    
     /**
-     * Get top 100 global all-time leaderboard
-     */
+    * Get top 100 global all-time leaderboard
+    */
     static async getTop100GlobalAllTime(req, res) {
         try {
             const leaderboard = await SudokuModel.getTop100GlobalAllTime();
@@ -252,10 +252,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving top 100 global all-time leaderboard' });
         }
     }
-
+    
     /**
-     * Get top 100 global monthly leaderboard
-     */
+    * Get top 100 global monthly leaderboard
+    */
     static async getTop100GlobalMonth(req, res) {
         try {
             const leaderboard = await SudokuModel.getTop100GlobalMonth();
@@ -270,10 +270,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving top 100 global monthly leaderboard' });
         }
     }
-
+    
     /**
-     * Get top 100 global weekly leaderboard
-     */
+    * Get top 100 global weekly leaderboard
+    */
     static async getTop100GlobalWeek(req, res) {
         try {
             const leaderboard = await SudokuModel.getTop100GlobalWeek();
@@ -288,10 +288,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving top 100 global weekly leaderboard' });
         }
     }
-
+    
     /**
-     * Get top 100 global daily leaderboard
-     */
+    * Get top 100 global daily leaderboard
+    */
     static async getTop100GlobalDay(req, res) {
         try {
             const leaderboard = await SudokuModel.getTop100GlobalDay();
@@ -306,21 +306,21 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving top 100 global daily leaderboard' });
         }
     }
-
+    
     /**
-     * Create a new group
-     */
+    * Create a new group
+    */
     static async createGroup(req, res) {
         try {
             const userId = req.user.userId;
             const { group_name, group_description, group_password } = req.body;
-
+            
             if (!group_name) {
                 return res.status(400).json({ 
                     error: 'Group name is required' 
                 });
             }
-
+            
             const group = await SudokuModel.createGroup(
                 { group_name, group_description, group_password },
                 userId
@@ -335,10 +335,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error creating group' });
         }
     }
-
+    
     /**
-     * Get all groups
-     */
+    * Get all groups
+    */
     static async getAllGroups(req, res) {
         try {
             // Get current user ID if authenticated, otherwise null for public view
@@ -353,20 +353,20 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving groups' });
         }
     }
-
+    
     /**
-     * Search groups
-     */
+    * Search groups
+    */
     static async searchGroups(req, res) {
         try {
             const { searchTerm } = req.query;
-
+            
             if (!searchTerm) {
                 return res.status(400).json({ 
                     error: 'Search term is required' 
                 });
             }
-
+            
             // Get current user ID if authenticated, otherwise null for public view
             const currentUserId = req.user ? req.user.userId : null;
             const groups = await SudokuModel.searchGroups(searchTerm, currentUserId);
@@ -380,10 +380,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error searching groups' });
         }
     }
-
+    
     /**
-     * Get groups for current player
-     */
+    * Get groups for current player
+    */
     static async getMyGroups(req, res) {
         try {
             const userId = req.user.userId;
@@ -398,10 +398,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving user groups' });
         }
     }
-
+    
     /**
-     * Get group details including members
-     */
+    * Get group details including members
+    */
     static async getGroupDetails(req, res) {
         try {
             const { groupId } = req.params;
@@ -413,7 +413,7 @@ class SudokuController {
                     error: 'Group not found' 
                 });
             }
-
+            
             const members = await SudokuModel.getGroupMembers(parseInt(groupId));
             const stats = await SudokuModel.getGroupStatistics(parseInt(groupId));
             
@@ -427,10 +427,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving group details' });
         }
     }
-
+    
     /**
-     * Join a group
-     */
+    * Join a group
+    */
     static async joinGroup(req, res) {
         try {
             const userId = req.user.userId;
@@ -438,21 +438,21 @@ class SudokuController {
             
             // Safely extract group_password from req.body, defaulting to undefined if req.body is undefined
             const group_password = req.body ? req.body.group_password : undefined;
-
+            
             const group = await SudokuModel.getGroupById(parseInt(groupId), userId);
             if (!group) {
                 return res.status(404).json({ 
                     error: 'Group not found' 
                 });
             }
-
+            
             // Check if group has password and verify it
             if (group.group_password && group.group_password !== group_password) {
                 return res.status(403).json({ 
                     error: 'Invalid group password' 
                 });
             }
-
+            
             await SudokuModel.addMemberToGroup(parseInt(groupId), userId);
             
             res.json({
@@ -467,10 +467,10 @@ class SudokuController {
             }
         }
     }
-
+    
     /**
-     * Join a group with password (alternative endpoint for frontend compatibility)
-     */
+    * Join a group with password (alternative endpoint for frontend compatibility)
+    */
     static async joinGroupWithPassword(req, res) {
         try {
             const userId = req.user.userId;
@@ -478,21 +478,21 @@ class SudokuController {
             
             // Extract password from req.body (frontend sends "password" not "group_password")
             const password = req.body ? req.body.password : undefined;
-
+            
             const group = await SudokuModel.getGroupById(parseInt(groupId), userId);
             if (!group) {
                 return res.status(404).json({ 
                     error: 'Group not found' 
                 });
             }
-
+            
             // Check if group has password and verify it
             if (group.group_password && group.group_password !== password) {
                 return res.status(403).json({ 
                     error: 'Invalid group password' 
                 });
             }
-
+            
             await SudokuModel.addMemberToGroup(parseInt(groupId), userId);
             
             res.json({
@@ -507,15 +507,15 @@ class SudokuController {
             }
         }
     }
-
+    
     /**
-     * Leave a group
-     */
+    * Leave a group
+    */
     static async leaveGroup(req, res) {
         try {
             const userId = req.user.userId;
             const { groupId } = req.params;
-
+            
             await SudokuModel.removeMemberFromGroup(parseInt(groupId), userId);
             
             res.json({
@@ -526,10 +526,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error leaving group' });
         }
     }
-
+    
     /**
-     * Get group leaderboard
-     */
+    * Get group leaderboard
+    */
     static async getGroupLeaderboard(req, res) {
         try {
             const { groupId } = req.params;
@@ -566,15 +566,15 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving group leaderboard' });
         }
     }
-
+    
     /**
-     * Delete a group (leaders only)
-     */
+    * Delete a group (leaders only)
+    */
     static async deleteGroup(req, res) {
         try {
             const userId = req.user.userId;
             const { groupId } = req.params;
-
+            
             await SudokuModel.deleteGroup(parseInt(groupId), userId);
             
             res.json({
@@ -589,22 +589,22 @@ class SudokuController {
             }
         }
     }
-
+    
     /**
-     * Set member role (leaders only)
-     */
+    * Set member role (leaders only)
+    */
     static async setMemberRole(req, res) {
         try {
             const currentUserId = req.user.userId;
             const { groupId, memberId } = req.params;
             const { role } = req.body;
-
+            
             if (!['member', 'leader'].includes(role)) {
                 return res.status(400).json({ 
                     error: 'Role must be either member or leader' 
                 });
             }
-
+            
             // Check if current user is a leader of the group
             const queryCheck = `
                 SELECT role FROM sudoku_group_members
@@ -617,7 +617,7 @@ class SudokuController {
                     error: 'Only group leaders can change member roles' 
                 });
             }
-
+            
             await SudokuModel.setRole(parseInt(groupId), parseInt(memberId), role);
             
             res.json({
@@ -628,21 +628,21 @@ class SudokuController {
             res.status(500).json({ error: 'Error updating member role' });
         }
     }
-
+    
     /**
-     * Award medal to player (admin functionality)
-     */
+    * Award medal to player (admin functionality)
+    */
     static async awardMedal(req, res) {
         try {
             const { playerId } = req.params;
             const { medalType, description, numberOfMedals = 1 } = req.body;
-
+            
             if (!medalType || !description) {
                 return res.status(400).json({ 
                     error: 'Medal type and description are required' 
                 });
             }
-
+            
             await SudokuModel.awardMedal(
                 parseInt(playerId), 
                 medalType, 
@@ -658,12 +658,12 @@ class SudokuController {
             res.status(500).json({ error: 'Error awarding medal' });
         }
     }
-
+    
     //region challenge
     /**
-     * Create a challenge invitation (with type selection)
-     * POST /api/sudoku/groups/:groupId/challenge
-     */
+    * Create a challenge invitation (with type selection)
+    * POST /api/sudoku/groups/:groupId/challenge
+    */
     static async createChallenge(req, res) {
         try {
             const challengerId = req.user.userId;
@@ -732,11 +732,11 @@ class SudokuController {
             res.status(500).json({ error: 'Error creating challenge' });
         }
     }
-
+    
     /**
-     * Get pending challenges for current user
-     * GET /api/sudoku/challenges/pending
-     */
+    * Get pending challenges for current user
+    * GET /api/sudoku/challenges/pending
+    */
     static async getPendingChallenges(req, res) {
         try {
             const userId = req.user.userId;
@@ -747,11 +747,11 @@ class SudokuController {
             res.status(500).json({ error: 'Error fetching challenges' });
         }
     }
-
+    
     /**
-     * Accept a challenge and start the game
-     * POST /api/sudoku/challenges/:challengeId/accept
-     */
+    * Accept a challenge and start the game
+    * POST /api/sudoku/challenges/:challengeId/accept
+    */
     static async acceptChallenge(req, res) {
         try {
             const userId = req.user.userId;
@@ -783,11 +783,11 @@ class SudokuController {
             res.status(500).json({ error: 'Error accepting challenge' });
         }
     }
-
+    
     /**
-     * Complete a challenge (submit challenger's game or challenged player's response)
-     * POST /api/sudoku/challenges/:challengeId/complete
-     */
+    * Complete a challenge (submit challenger's game or challenged player's response)
+    * POST /api/sudoku/challenges/:challengeId/complete
+    */
     static async completeChallenge(req, res) {
         try {
             const userId = req.user.userId;
@@ -805,11 +805,11 @@ class SudokuController {
             res.status(500).json({ error: 'Error completing challenge' });
         }
     }
-
+    
     /**
-     * Reject a challenge
-     * POST /api/sudoku/challenges/:challengeId/reject
-     */
+    * Reject a challenge
+    * POST /api/sudoku/challenges/:challengeId/reject
+    */
     static async rejectChallenge(req, res) {
         try {
             const userId = req.user.userId;
@@ -836,10 +836,10 @@ class SudokuController {
             res.status(500).json({ error: 'Error rejecting challenge' });
         }
     }
-
+    
     /**
-     * Complete challenger's game and update puzzle data
-     * POST /api/sudoku/challenges/:challengeId/complete-challenger
+    * Complete challenger's game and update puzzle data
+    * POST /api/sudoku/challenges/:challengeId/complete-challenger
     */
     static async completeChallengerGame(req, res) {
         try {
@@ -869,11 +869,11 @@ class SudokuController {
             res.status(500).json({ error: 'Error completing challenger game' });
         }
     }
-
+    
     /**
-     * Get pending live matches for current user
-     * GET /api/sudoku/matches/pending
-     */
+    * Get pending live matches for current user
+    * GET /api/sudoku/matches/pending
+    */
     static async getPendingLiveMatches(req, res) {
         try {
             const userId = req.user.userId;
@@ -884,11 +884,11 @@ class SudokuController {
             res.status(500).json({ error: 'Error fetching live matches' });
         }
     }
-
+    
     /**
-     * Accept a live match
-     * POST /api/sudoku/matches/:matchId/accept
-     */
+    * Accept a live match
+    * POST /api/sudoku/matches/:matchId/accept
+    */
     static async acceptLiveMatch(req, res) {
         try {
             const userId = req.user.userId;
@@ -913,6 +913,40 @@ class SudokuController {
         } catch (error) {
             console.error('Accept live match error:', error);
             res.status(500).json({ error: 'Error accepting live match' });
+        }
+    }
+    
+    /**
+    * Get challenge data without accepting it
+    * GET /api/sudoku/challenges/:challengeId/data
+    */
+    static async getChallengeData(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { challengeId } = req.params;
+            
+            const challenge = await SudokuModel.getChallengeById(challengeId);
+            if (!challenge) {
+                return res.status(404).json({ error: 'Challenge not found' });
+            }
+            
+            // Only challenger or challenged can view challenge data
+            if (challenge.challenger_id !== userId && challenge.challenged_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized to view this challenge' });
+            }
+            
+            res.json({
+                challengeId: challenge.id,
+                puzzleData: JSON.parse(challenge.puzzle_data),
+                challengerTime: challenge.challenger_time,
+                challengerScore: challenge.challenger_score,
+                challengerMistakes: challenge.challenger_mistakes,
+                difficulty: challenge.difficulty,
+                status: challenge.status
+            });
+        } catch (error) {
+            console.error('Get challenge data error:', error);
+            res.status(500).json({ error: 'Error getting challenge data' });
         }
     }
 }

@@ -56,6 +56,7 @@ router.post('/challenges/:challengeId/accept', SudokuController.acceptChallenge)
 router.post('/challenges/:challengeId/reject', SudokuController.rejectChallenge); 
 router.post('/challenges/:challengeId/complete', SudokuController.completeChallenge);
 router.post('/challenges/:challengeId/complete-challenger', SudokuController.completeChallengerGame);
+router.get('/challenges/:challengeId/data', SudokuController.getChallengeData);
 
 // Live match routes
 router.get('/matches/pending', SudokuController.getPendingLiveMatches);
