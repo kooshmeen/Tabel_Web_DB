@@ -4,23 +4,23 @@ const {filterColumnsForDisplay, getRowPermissions} = require('../config/columnPe
 
 class SudokuModel {
     /**
-     * Create a new sudoku user account
-     * @param {Object} userData - The user data to create the account
-     * @returns {Promise<Object>} - The created user object
-     */
+    * Create a new sudoku user account
+    * @param {Object} userData - The user data to create the account
+    * @returns {Promise<Object>} - The created user object
+    */
     static async createUser(userData) {
         const { username, email, password } = userData;
-
+        
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
-
+        
         const query = `
             INSERT INTO sudoku_players (username, email, password)
             VALUES ($1, $2, $3)
             RETURNING *;
         `;
         const values = [username, email, hashedPassword];
-
+        
         try {
             const result = await pool.query(query, values);
             return result.rows[0];
@@ -28,18 +28,18 @@ class SudokuModel {
             throw new Error('Error creating user');
         }
     }
-
+    
     /**
-     * Get a user by ID
-     * @param {number} userId - The ID of the user to retrieve
-     * @returns {Promise<Object>} - The user object
-     */
+    * Get a user by ID
+    * @param {number} userId - The ID of the user to retrieve
+    * @returns {Promise<Object>} - The user object
+    */
     static async getUserById(userId) {
         const query = `
             SELECT * FROM sudoku_players WHERE id = $1;
         `;
         const values = [userId];
-
+        
         try {
             const result = await pool.query(query, values);
             return result.rows[0];
@@ -47,18 +47,18 @@ class SudokuModel {
             throw new Error('Error retrieving user');
         }
     }
-
+    
     /**
-     * Get user by email
-     * @param {string} email - The email of the user to retrieve
-     * @returns {Promise<Object>} - The user object
-     */
+    * Get user by email
+    * @param {string} email - The email of the user to retrieve
+    * @returns {Promise<Object>} - The user object
+    */
     static async getUserByEmail(email) {
         const query = `
             SELECT * FROM sudoku_players WHERE email = $1;
         `;
         const values = [email];
-
+        
         try {
             const result = await pool.query(query, values);
             return result.rows[0];
@@ -66,16 +66,16 @@ class SudokuModel {
             throw new Error('Error retrieving user by email');
         }
     }
-
+    
     /**
-     * Update user information - allows user to update their username
-     * @param {number} userId - The ID of the user to update
-     * @param {Object} updateData - The data to update
-     * @returns {Promise<Object>} - The updated user object
-     */
+    * Update user information - allows user to update their username
+    * @param {number} userId - The ID of the user to update
+    * @param {Object} updateData - The data to update
+    * @returns {Promise<Object>} - The updated user object
+    */
     static async updateUser(userId, updateData) {
         const { username } = updateData;
-
+        
         const query = `
             UPDATE sudoku_players
             SET username = $1
@@ -83,7 +83,7 @@ class SudokuModel {
             RETURNING *;
         `;
         const values = [username, userId];
-
+        
         try {
             const result = await pool.query(query, values);
             return result.rows[0];
@@ -91,16 +91,16 @@ class SudokuModel {
             throw new Error('Error updating user');
         }
     }
-
+    
     /**
-     * Change a user's password
-     * @param {number} userId - The ID of the user whose password is to be changed
-     * @param {string} newPassword - The new password to set
-     * @returns {Promise<Object>} - The updated user object with the new password
-     */
+    * Change a user's password
+    * @param {number} userId - The ID of the user whose password is to be changed
+    * @param {string} newPassword - The new password to set
+    * @returns {Promise<Object>} - The updated user object with the new password
+    */
     static async changePassword(userId, newPassword) {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-
+        
         const query = `
             UPDATE sudoku_players
             SET password = $1
@@ -108,7 +108,7 @@ class SudokuModel {
             RETURNING *;
         `;
         const values = [hashedPassword, userId];
-
+        
         try {
             const result = await pool.query(query, values);
             return result.rows[0];
@@ -116,34 +116,34 @@ class SudokuModel {
             throw new Error('Error changing password');
         }
     }
-
+    
     /**
-     * Delete a user account
-     * @param {number} userId - The ID of the user to delete
-     * @returns {Promise<void>} - Resolves when the user is deleted
-     */
+    * Delete a user account
+    * @param {number} userId - The ID of the user to delete
+    * @returns {Promise<void>} - Resolves when the user is deleted
+    */
     static async deleteUser(userId) {
         const query = `
             DELETE FROM sudoku_players WHERE id = $1;
         `;
         const values = [userId];
-
+        
         try {
             await pool.query(query, values);
         } catch (error) {
             throw new Error('Error deleting user');
         }
     }
-
+    
     /**
-     * Get all users
-     * @returns {Promise<Array>} - An array of user objects
-     */
+    * Get all users
+    * @returns {Promise<Array>} - An array of user objects
+    */
     static async getAllUsers() {
         const query = `
             SELECT * FROM sudoku_players;
         `;
-
+        
         try {
             const result = await pool.query(query);
             return result.rows;
@@ -151,18 +151,18 @@ class SudokuModel {
             throw new Error('Error retrieving all users');
         }
     }
-
+    
     /**
-     * Get all users from a certain group
-     * @param {string} group - The group to filter users by
-     * @returns {Promise<Array>} - An array of user objects from the specified group
-     */
+    * Get all users from a certain group
+    * @param {string} group - The group to filter users by
+    * @returns {Promise<Array>} - An array of user objects from the specified group
+    */
     static async getUsersByGroup(group) {
         const query = `
             SELECT * FROM sudoku_players WHERE group = $1;
         `;
         const values = [group];
-
+        
         try {
             const result = await pool.query(query, values);
             return result.rows;
@@ -170,19 +170,19 @@ class SudokuModel {
             throw new Error('Error retrieving users by group');
         }
     }
-
+    
     /**
-     * Verify a user's password
-     * @param {string} id - The id
-     * @param {string} password - The password to verify
-     * @returns {Promise<boolean>} - True if the password is correct, false otherwise
-     */
+    * Verify a user's password
+    * @param {string} id - The id
+    * @param {string} password - The password to verify
+    * @returns {Promise<boolean>} - True if the password is correct, false otherwise
+    */
     static async verifyPassword(id, password) {
         const query = `
             SELECT password FROM sudoku_players WHERE id = $1;
         `;
         const values = [id];
-
+        
         try {
             const result = await pool.query(query, values);
             if (result.rows.length === 0) {
@@ -194,33 +194,33 @@ class SudokuModel {
             throw new Error('Error verifying password');
         }
     }
-
+    
     /**
-     * Authenticate a user by email and password
-     * @param {string} email - The user's email
-     * @param {string} password - The user's password
-     * @returns {Promise<Object|null>} - The user object if authentication is successful, null otherwise
-     */
+    * Authenticate a user by email and password
+    * @param {string} email - The user's email
+    * @param {string} password - The user's password
+    * @returns {Promise<Object|null>} - The user object if authentication is successful, null otherwise
+    */
     static async authenticateUser(email, password) {
         const user = await this.getUserByEmail(email);
         if (!user) {
             return null; // User not found
         }
-
+        
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return null; // Invalid password
         }
-
+        
         // Filter columns for display
         return user;
     }
-
+    
     /**
-     * Get all groups with additional metadata
-     * @param {number|null} currentUserId - Optional user ID to get user role in groups
-     * @returns {Promise<Array>} - An array of all groups with member count and privacy info
-     */
+    * Get all groups with additional metadata
+    * @param {number|null} currentUserId - Optional user ID to get user role in groups
+    * @returns {Promise<Array>} - An array of all groups with member count and privacy info
+    */
     static async getAllGroups(currentUserId = null) {
         let query = `
             SELECT 
@@ -256,7 +256,7 @@ class SudokuModel {
         query += `
             ORDER BY g.created_at DESC
         `;
-
+        
         try {
             const values = currentUserId ? [currentUserId] : [];
             const result = await pool.query(query, values);
@@ -265,44 +265,44 @@ class SudokuModel {
             throw new Error('Error retrieving all groups');
         }
     }
-
+    
     /**
-     * Create a new group
-     * @param {Object} groupData - The data for the new group. Contains group name, description, and optionally password.
-     * @param {number} currentUserId - The ID of the user creating the group - will automatically be added as the first member, with leader role.
-     * @return {Promise<Object>} - The created group object
-     */
+    * Create a new group
+    * @param {Object} groupData - The data for the new group. Contains group name, description, and optionally password.
+    * @param {number} currentUserId - The ID of the user creating the group - will automatically be added as the first member, with leader role.
+    * @return {Promise<Object>} - The created group object
+    */
     static async createGroup(groupData, currentUserId) {
         const { group_name, group_description, group_password } = groupData;
-
+        
         const query = `
             INSERT INTO sudoku_groups (group_name, group_description, group_password)
             VALUES ($1, $2, $3)
             RETURNING *;
         `;
         const values = [group_name, group_description, group_password];
-
+        
         try {
             const result = await pool.query(query, values);
             const newGroup = result.rows[0];
-
+            
             // Automatically add the creator as the first member with leader role
             await this.addMemberToGroup(newGroup.id, currentUserId);
             await this.setRole(newGroup.id, currentUserId, 'leader');
-
+            
             return newGroup;
         } catch (error) {
             throw new Error('Error creating group');
         }
         
     }
-
+    
     /**
-     * Get a group by ID with additional metadata
-     * @param {number} groupId - The ID of the group to retrieve
-     * @param {number|null} currentUserId - Optional user ID to get user role in the group
-     * @returns {Promise<Object>} - The group object with metadata
-     */
+    * Get a group by ID with additional metadata
+    * @param {number} groupId - The ID of the group to retrieve
+    * @param {number|null} currentUserId - Optional user ID to get user role in the group
+    * @returns {Promise<Object>} - The group object with metadata
+    */
     static async getGroupById(groupId, currentUserId = null) {
         let query = `
             SELECT 
@@ -335,7 +335,7 @@ class SudokuModel {
         if (currentUserId) {
             query += `, user_gm.role`;
         }
-
+        
         try {
             const values = currentUserId ? [groupId, currentUserId] : [groupId];
             const result = await pool.query(query, values);
@@ -344,12 +344,12 @@ class SudokuModel {
             throw new Error('Error retrieving group by ID');
         }
     }
-
+    
     /**
-     * Get all members of a group
-     * @param {number} groupId - The ID of the group
-     * @returns {Promise<Array>} - An array of members in the group
-     */
+    * Get all members of a group
+    * @param {number} groupId - The ID of the group
+    * @returns {Promise<Array>} - An array of members in the group
+    */
     static async getGroupMembers(groupId) {
         const query = `
             SELECT 
@@ -368,7 +368,7 @@ class SudokuModel {
             ORDER BY sgm.role DESC, sgm.joined_at ASC
         `;
         const values = [groupId];
-
+        
         try {
             const result = await pool.query(query, values);
             return result.rows;
@@ -376,34 +376,34 @@ class SudokuModel {
             throw new Error('Error retrieving group members');
         }
     }
-
+    
     /**
-     * Add a member to a group
-     * @param {number} groupId - The ID of the group
-     * @param {number} userId - The ID of the user to add
-     * @return {Promise<void>} - Resolves when the user is added to the group
-     */
+    * Add a member to a group
+    * @param {number} groupId - The ID of the group
+    * @param {number} userId - The ID of the user to add
+    * @return {Promise<void>} - Resolves when the user is added to the group
+    */
     static async addMemberToGroup(groupId, userId) {
         const query = `
             INSERT INTO sudoku_group_members (group_id, player_id)
             VALUES ($1, $2);
         `;
         const values = [groupId, userId];
-
+        
         try {
             await pool.query(query, values);
         } catch (error) {
             throw new Error('Error adding member to group');
         }
     }
-
+    
     /**
-     * Set the role for a member in a group.
-     * @param {number} groupId - The ID of the group
-     * @param {number} userId - The ID of the user
-     * @param {string} role - The role to set (e.g., 'leader', 'member')
-     * @returns {Promise<void>} - Resolves when the role is set
-     */
+    * Set the role for a member in a group.
+    * @param {number} groupId - The ID of the group
+    * @param {number} userId - The ID of the user
+    * @param {string} role - The role to set (e.g., 'leader', 'member')
+    * @returns {Promise<void>} - Resolves when the role is set
+    */
     static async setRole(groupId, userId, role) {
         const query = `
             UPDATE sudoku_group_members
@@ -411,20 +411,20 @@ class SudokuModel {
             WHERE group_id = $2 AND player_id = $3;
         `;
         const values = [role, groupId, userId];
-
+        
         try {
             await pool.query(query, values);
         } catch (error) {
             throw new Error('Error setting role for member');
         }
     }
-
+    
     /**
-     * Delete a group. Only a 'leader' can delete a group.
-     * @param {number} groupId - The ID of the group to delete
-     * @param {number} currentUserId - The ID of the user attempting to delete the group
-     * @returns {Promise<void>} - Resolves when the group is deleted
-     */
+    * Delete a group. Only a 'leader' can delete a group.
+    * @param {number} groupId - The ID of the group to delete
+    * @param {number} currentUserId - The ID of the user attempting to delete the group
+    * @returns {Promise<void>} - Resolves when the group is deleted
+    */
     static async deleteGroup(groupId, currentUserId) {
         // Check if the user is a leader of the group
         const queryCheck = `
@@ -432,13 +432,13 @@ class SudokuModel {
             WHERE group_id = $1 AND player_id = $2;
         `;
         const valuesCheck = [groupId, currentUserId];
-
+        
         try {
             const resultCheck = await pool.query(queryCheck, valuesCheck);
             if (resultCheck.rows.length === 0 || resultCheck.rows[0].role !== 'leader') {
                 throw new Error('Only leaders can delete the group');
             }
-
+            
             // Proceed to delete the group
             const queryDelete = `
                 DELETE FROM sudoku_groups WHERE id = $1;
@@ -449,15 +449,15 @@ class SudokuModel {
             throw new Error('Error deleting group: ' + error.message);
         }
     }
-
+    
     /**
-     * Record a completed sudoku game using the new daily-based approach
-     * @param {number} playerId
-     * @param {number} timeSeconds
-     * @param {string} difficulty
-     * @param {number} numberOfMistakes
-     * @returns {Promise<void>}
-     */
+    * Record a completed sudoku game using the new daily-based approach
+    * @param {number} playerId
+    * @param {number} timeSeconds
+    * @param {string} difficulty
+    * @param {number} numberOfMistakes
+    * @returns {Promise<void>}
+    */
     static async recordCompletedGame(playerId, timeSeconds, difficulty, numberOfMistakes) {
         try {
             const noMistakes = numberOfMistakes === 0;
@@ -523,12 +523,12 @@ class SudokuModel {
     }
     
     /**
-     * Calculate score based on game performance (using original scoring formula)
-     * @param {string} difficulty - 'easy', 'medium', 'hard'
-     * @param {number} timeSeconds - Time taken to complete
-     * @param {number} numberOfMistakes - Number of mistakes made
-     * @returns {number} - Calculated score
-     */
+    * Calculate score based on game performance (using original scoring formula)
+    * @param {string} difficulty - 'easy', 'medium', 'hard'
+    * @param {number} timeSeconds - Time taken to complete
+    * @param {number} numberOfMistakes - Number of mistakes made
+    * @returns {number} - Calculated score
+    */
     static calculateGameScore(difficulty, timeSeconds, numberOfMistakes) {
         const basePoints = 1000; // Base points for any completed game
         const difficultyMultiplier = {
@@ -536,26 +536,26 @@ class SudokuModel {
             medium: 0.7,
             hard: 1.5
         }[difficulty] || 1;
-
+        
         const timeScore = {
             easy: 600,
             medium: 1200,
             hard: 1800
         }[difficulty] || 600; // Base time score for each difficulty
-
+        
         const mistakePenalty = Math.max(0.4, 1 - (numberOfMistakes * 0.1)); // Penalty for mistakes, capped at 40% of the score
-
+        
         const score = Math.round((difficultyMultiplier * mistakePenalty) * (Math.max(0, (timeScore - timeSeconds) * 2) + basePoints)); // Example scoring formula
-
+        
         return score;
     }
-
+    
     /**
-     * Get all daily scores for a player
-     * @param {number} playerId
-     * @param {number} limit - Optional limit for recent entries
-     * @returns {Promise<Array>}
-     */
+    * Get all daily scores for a player
+    * @param {number} playerId
+    * @param {number} limit - Optional limit for recent entries
+    * @returns {Promise<Array>}
+    */
     static async getScoresForPlayer(playerId, limit = null) {
         let query = `
             SELECT * FROM sudoku_daily_scores 
@@ -577,14 +577,14 @@ class SudokuModel {
             throw new Error('Error retrieving scores for player');
         }
     }
-
+    
     /**
-     * Get top N players from global leaderboard for a given period using daily scores
-     * @param {string} periodType - 'all', 'month', 'week', 'day'
-     * @param {Date|null} periodStart - The start date of the period (calculated if null)
-     * @param {number} limit - Number of top players to return
-     * @returns {Promise<Array>}
-     */
+    * Get top N players from global leaderboard for a given period using daily scores
+    * @param {string} periodType - 'all', 'month', 'week', 'day'
+    * @param {Date|null} periodStart - The start date of the period (calculated if null)
+    * @param {number} limit - Number of top players to return
+    * @returns {Promise<Array>}
+    */
     static async getTopGlobalLeaderboard(periodType, periodStart = null, limit = 10) {
         try {
             let dateFilter = '';
@@ -595,15 +595,15 @@ class SudokuModel {
                     const now = new Date();
                     switch (periodType) {
                         case 'day':
-                            periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                            break;
+                        periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        break;
                         case 'week':
-                            periodStart = new Date(now);
-                            periodStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
-                            break;
+                        periodStart = new Date(now);
+                        periodStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+                        break;
                         case 'month':
-                            periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                            break;
+                        periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                        break;
                     }
                 }
                 dateFilter = 'WHERE sds.play_date >= $2';
@@ -643,95 +643,95 @@ class SudokuModel {
             throw new Error('Error retrieving global leaderboard');
         }
     }
-
-        /**
-     * Get top 100 players from global leaderboard for all time
-     * @returns {Promise<Array>}
-     */
+    
+    /**
+    * Get top 100 players from global leaderboard for all time
+    * @returns {Promise<Array>}
+    */
     static async getTop100GlobalAllTime() {
         return await this.getTopGlobalLeaderboard('all', null, 100);
     }
-
+    
     /**
-     * Get top 100 players from global leaderboard for current month
-     * @returns {Promise<Array>}
-     */
+    * Get top 100 players from global leaderboard for current month
+    * @returns {Promise<Array>}
+    */
     static async getTop100GlobalMonth() {
         return await this.getTopGlobalLeaderboard('month', null, 100);
     }
-
+    
     /**
-     * Get top 100 players from global leaderboard for current week
-     * @returns {Promise<Array>}
-     */
+    * Get top 100 players from global leaderboard for current week
+    * @returns {Promise<Array>}
+    */
     static async getTop100GlobalWeek() {
         return await this.getTopGlobalLeaderboard('week', null, 100);
     }
-
+    
     /**
-     * Get top 100 players from global leaderboard for current day
-     * @returns {Promise<Array>}
-     */
+    * Get top 100 players from global leaderboard for current day
+    * @returns {Promise<Array>}
+    */
     static async getTop100GlobalDay() {
         return await this.getTopGlobalLeaderboard('day', null, 100);
     }
-
+    
     /**
-     * Get top N players from group leaderboard for a given period using daily scores
-     * @param {number} groupId
-     * @param {string} periodType - 'all', 'month', 'week', 'day'
-     * @param {Date|null} periodStart - The start date of the period (calculated if null)
-     * @param {number} limit - Number of top players to return
-     * @returns {Promise<Array>}
-     */
-
+    * Get top N players from group leaderboard for a given period using daily scores
+    * @param {number} groupId
+    * @param {string} periodType - 'all', 'month', 'week', 'day'
+    * @param {Date|null} periodStart - The start date of the period (calculated if null)
+    * @param {number} limit - Number of top players to return
+    * @returns {Promise<Array>}
+    */
+    
     /**
-     * Get top 100 players from global leaderboard for all time
-     * @returns {Promise<Array>}
-     */
+    * Get top 100 players from global leaderboard for all time
+    * @returns {Promise<Array>}
+    */
     static async getTop100GlobalAllTime() {
         return await this.getTopGlobalLeaderboard('all', null, 100);
     }
-
+    
     /**
-     * Get top 100 players from global leaderboard for current month
-     * @returns {Promise<Array>}
-     */
+    * Get top 100 players from global leaderboard for current month
+    * @returns {Promise<Array>}
+    */
     static async getTop100GlobalMonth() {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         return await this.getTopGlobalLeaderboard('month', startOfMonth, 100);
     }
-
+    
     /**
-     * Get top 100 players from global leaderboard for current week
-     * @returns {Promise<Array>}
-     */
+    * Get top 100 players from global leaderboard for current week
+    * @returns {Promise<Array>}
+    */
     static async getTop100GlobalWeek() {
         const now = new Date();
         const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
         return await this.getTopGlobalLeaderboard('week', startOfWeek, 100);
     }
-
+    
     /**
-     * Get top 100 players from global leaderboard for current day
-     * @returns {Promise<Array>}
-     */
+    * Get top 100 players from global leaderboard for current day
+    * @returns {Promise<Array>}
+    */
     static async getTop100GlobalDay() {
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         return await this.getTopGlobalLeaderboard('day', startOfDay, 100);
     }
-
+    
     /**
-     * Get top N players from group leaderboard for a given period using daily scores
-     * @param {number} groupId
-     * @param {string} periodType - 'all', 'month', 'week', 'day'
-     * @param {Date|null} periodStart - The start date of the period (calculated if null)
-     * @param {number} limit - Number of top players to return
-     * @returns {Promise<Array>}
-     */
+    * Get top N players from group leaderboard for a given period using daily scores
+    * @param {number} groupId
+    * @param {string} periodType - 'all', 'month', 'week', 'day'
+    * @param {Date|null} periodStart - The start date of the period (calculated if null)
+    * @param {number} limit - Number of top players to return
+    * @returns {Promise<Array>}
+    */
     static async getTopGroupLeaderboard(groupId, periodType, periodStart = null, limit = 10) {
         try {
             let dateFilter = '';
@@ -742,15 +742,15 @@ class SudokuModel {
                     const now = new Date();
                     switch (periodType) {
                         case 'day':
-                            periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                            break;
+                        periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        break;
                         case 'week':
-                            periodStart = new Date(now);
-                            periodStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
-                            break;
+                        periodStart = new Date(now);
+                        periodStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+                        break;
                         case 'month':
-                            periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                            break;
+                        periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                        break;
                     }
                 }
                 dateFilter = 'AND sds.play_date >= $3';
@@ -791,15 +791,15 @@ class SudokuModel {
             throw new Error('Error retrieving group leaderboard');
         }
     }
-
+    
     /**
-     * Award a medal to a player (upsert)
-     * @param {number} playerId
-     * @param {string} medalType
-     * @param {string} description
-     * @param {number} numberOfMedals
-     * @returns {Promise<void>}
-     */
+    * Award a medal to a player (upsert)
+    * @param {number} playerId
+    * @param {string} medalType
+    * @param {string} description
+    * @param {number} numberOfMedals
+    * @returns {Promise<void>}
+    */
     static async awardMedal(playerId, medalType, description, numberOfMedals = 1) {
         const query = `
             INSERT INTO sudoku_player_medals (player_id, medal_type, description, number_of_medals)
@@ -814,12 +814,12 @@ class SudokuModel {
             throw new Error('Error awarding medal');
         }
     }
-
+    
     /**
-     * Get all medals for a player
-     * @param {number} playerId
-     * @returns {Promise<Array>}
-     */
+    * Get all medals for a player
+    * @param {number} playerId
+    * @returns {Promise<Array>}
+    */
     static async getMedalsForPlayer(playerId) {
         const query = `
             SELECT * FROM sudoku_player_medals WHERE player_id = $1;
@@ -832,13 +832,13 @@ class SudokuModel {
             throw new Error('Error retrieving medals for player');
         }
     }
-
+    
     /**
-     * Remove a member from a group
-     * @param {number} groupId
-     * @param {number} userId
-     * @returns {Promise<void>}
-     */
+    * Remove a member from a group
+    * @param {number} groupId
+    * @param {number} userId
+    * @returns {Promise<void>}
+    */
     static async removeMemberFromGroup(groupId, userId) {
         const query = `
             DELETE FROM sudoku_group_members WHERE group_id = $1 AND player_id = $2;
@@ -850,12 +850,12 @@ class SudokuModel {
             throw new Error('Error removing member from group');
         }
     }
-
+    
     /**
-     * List all groups a player is a member of with additional metadata
-     * @param {number} playerId
-     * @returns {Promise<Array>}
-     */
+    * List all groups a player is a member of with additional metadata
+    * @param {number} playerId
+    * @returns {Promise<Array>}
+    */
     static async getGroupsForPlayer(playerId) {
         const query = `
             SELECT 
@@ -878,13 +878,13 @@ class SudokuModel {
             throw new Error('Error retrieving groups for player');
         }
     }
-
+    
     /**
-     * Search groups by name or description with additional metadata
-     * @param {string} searchTerm
-     * @param {number|null} currentUserId - Optional user ID to get user role in groups
-     * @returns {Promise<Array>}
-     */
+    * Search groups by name or description with additional metadata
+    * @param {string} searchTerm
+    * @param {number|null} currentUserId - Optional user ID to get user role in groups
+    * @returns {Promise<Array>}
+    */
     static async searchGroups(searchTerm, currentUserId = null) {
         let query = `
             SELECT 
@@ -931,12 +931,12 @@ class SudokuModel {
             throw new Error('Error searching groups');
         }
     }
-
+    
     /**
-     * Get statistics for a player using the new daily scores system
-     * @param {number} playerId
-     * @returns {Promise<Object>}
-     */
+    * Get statistics for a player using the new daily scores system
+    * @param {number} playerId
+    * @returns {Promise<Object>}
+    */
     static async getPlayerStatistics(playerId) {
         try {
             const query = `
@@ -971,12 +971,12 @@ class SudokuModel {
             throw new Error('Error retrieving player statistics');
         }
     }
-
+    
     /**
-     * Get statistics for a group using the new daily scores system
-     * @param {number} groupId
-     * @returns {Promise<Object>}
-     */
+    * Get statistics for a group using the new daily scores system
+    * @param {number} groupId
+    * @returns {Promise<Object>}
+    */
     static async getGroupStatistics(groupId) {
         try {
             const query = `
@@ -1012,11 +1012,11 @@ class SudokuModel {
             throw new Error('Error retrieving group statistics');
         }
     }
-
+    
     //region challenge
     /**
-     * Check if both players are members of the specified group
-     */
+    * Check if both players are members of the specified group
+    */
     static async checkPlayersInGroup(player1Id, player2Id, groupId) {
         const query = `
             SELECT COUNT(DISTINCT player_id) as count 
@@ -1027,10 +1027,10 @@ class SudokuModel {
         //return parseInt(result.rows[0].count) === 2;
         return true;
     }
-
+    
     /**
-     * Generate puzzle data (implement based on your puzzle generation logic)
-     */
+    * Generate puzzle data (implement based on your puzzle generation logic)
+    */
     static async generatePuzzle(difficulty) {
         // For now, return a placeholder - replace with actual puzzle generation
         return {
@@ -1039,10 +1039,10 @@ class SudokuModel {
             difficulty: difficulty
         };
     }
-
+    
     /**
-     * Create a new challenge invitation (pending challenger completion)
-     */
+    * Create a new challenge invitation (pending challenger completion)
+    */
     static async createChallenge(challengeData) {
         const { challengerId, challengedId, groupId, difficulty } = challengeData;
         
@@ -1062,10 +1062,10 @@ class SudokuModel {
         
         return result.rows[0].id;
     }
-
+    
     /**
-     * Create a live match for online challenges
-     */
+    * Create a live match for online challenges
+    */
     static async createLiveMatch(matchData) {
         const { challengerId, challengedId, groupId, difficulty, puzzleData } = matchData;
         
@@ -1082,10 +1082,10 @@ class SudokuModel {
         
         return result.rows[0].id;
     }
-
+    
     /**
-     * Get pending live matches for a user
-     */
+    * Get pending live matches for a user
+    */
     static async getPendingLiveMatches(userId) {
         const query = `
             SELECT 
@@ -1102,10 +1102,10 @@ class SudokuModel {
         const result = await pool.query(query, [userId]);
         return result.rows;
     }
-
+    
     /**
-     * Accept a live match
-     */
+    * Accept a live match
+    */
     static async acceptLiveMatch(matchId) {
         const query = `
             UPDATE sudoku_live_matches 
@@ -1117,10 +1117,10 @@ class SudokuModel {
         const result = await pool.query(query, [matchId]);
         return result.rows[0];
     }
-
+    
     /**
-     * Reject a challenge or live match
-     */
+    * Reject a challenge or live match
+    */
     static async rejectChallenge(challengeId) {
         const query = `
             UPDATE sudoku_challenge_invitations 
@@ -1130,10 +1130,10 @@ class SudokuModel {
         
         await pool.query(query, [challengeId]);
     }
-
+    
     /**
-     * Reject a live match
-     */
+    * Reject a live match
+    */
     static async rejectLiveMatch(matchId) {
         const query = `
             UPDATE sudoku_live_matches 
@@ -1143,10 +1143,10 @@ class SudokuModel {
         
         await pool.query(query, [matchId]);
     }
-
+    
     /**
-     * Update challenger completion for offline challenges
-     */
+    * Update challenger completion for offline challenges
+    */
     static async updateChallengerCompletion(challengeId, timeSeconds, score, mistakes) {
         const query = `
             UPDATE sudoku_challenge_invitations 
@@ -1156,10 +1156,10 @@ class SudokuModel {
         
         await pool.query(query, [timeSeconds, score, mistakes, challengeId]);
     }
-
+    
     /**
-     * Get pending challenges for a user
-     */
+    * Get pending challenges for a user
+    */
     static async getPendingChallenges(userId) {
         const query = `
             SELECT 
@@ -1176,19 +1176,19 @@ class SudokuModel {
         const result = await pool.query(query, [userId]);
         return result.rows;
     }
-
+    
     /**
-     * Get challenge by ID
-     */
+    * Get challenge by ID
+    */
     static async getChallengeById(challengeId) {
         const query = `SELECT * FROM sudoku_challenge_invitations WHERE id = $1`;
         const result = await pool.query(query, [challengeId]);
         return result.rows[0];
     }
-
+    
     /**
-     * Accept a challenge
-     */
+    * Accept a challenge
+    */
     static async acceptChallenge(challengeId) {
         const query = `
             UPDATE sudoku_challenge_invitations 
@@ -1198,22 +1198,30 @@ class SudokuModel {
         
         await pool.query(query, [challengeId]);
     }
-
+    
     /**
-     * Complete a challenge (either challenger completing initial game or challenged player responding)
-     */
+    * Complete a challenge (either challenger completing initial game or challenged player responding)
+    */
     static async completeChallenge(challengeId, userId, gameData) {
         const challenge = await this.getChallengeById(challengeId);
         
-        if (userId === challenge.challenger_id && !challenge.challenger_time) {
+        if (!challenge) {
+            throw new Error('Challenge not found');
+        }
+        
+        // Check if this is the challenger completing for the first time
+        if (userId === challenge.challenger_id && challenge.challenger_time === 0) {
             // Challenger completing initial game
             const score = this.calculateGameScore(challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes === 0);
             
             const updateQuery = `
-                UPDATE sudoku_challenge_invitations 
-                SET challenger_time = $1, challenger_score = $2, challenger_mistakes = $3
-                WHERE id = $4
-            `;
+            UPDATE sudoku_challenge_invitations 
+            SET challenger_time = $1, 
+                challenger_score = $2, 
+                challenger_mistakes = $3,
+                status = 'pending'
+            WHERE id = $4
+        `;
             
             await pool.query(updateQuery, [
                 gameData.timeSeconds, 
@@ -1223,57 +1231,84 @@ class SudokuModel {
             ]);
             
             // Also submit as regular game
-            await this.submitDailyGame(userId, challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes);
-            
-            return { message: 'Challenge game completed, waiting for opponent' };
+            await this.recordCompletedGame(challenge.challenger_id, challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes);
+
+            return { 
+                message: 'Challenge game completed, waiting for opponent',
+                status: 'challenger_completed'
+            };
             
         } else if (userId === challenge.challenged_id && challenge.status === 'accepted') {
             // Challenged player completing response
-            const challengedScore = this.calculateGameScore(challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes === 0);
+            const challengedScore = this.calculateGameScore(
+                challenge.difficulty, 
+                gameData.timeSeconds, 
+                gameData.numberOfMistakes === 0
+            );
             
-            // Determine winner
+            // Store challenged player's data BEFORE determining winner
+            const updateQuery = `
+            UPDATE sudoku_challenge_invitations 
+            SET status = 'completed',
+                challenged_time = $1,
+                challenged_score = $2,
+                challenged_mistakes = $3
+            WHERE id = $4
+            RETURNING *
+        `;
+            
+            const updateResult = await pool.query(updateQuery, [
+                gameData.timeSeconds,
+                challengedScore,
+                gameData.numberOfMistakes,
+                challengeId
+            ]);
+            
+            const updatedChallenge = updateResult.rows[0];
+            
+            // Determine winner using the stored scores
             let winner = null;
-            if (challengedScore > challenge.challenger_score) {
+            if (challengedScore > updatedChallenge.challenger_score) {
                 winner = 'challenged';
-            } else if (challenge.challenger_score > challengedScore) {
+            } else if (updatedChallenge.challenger_score > challengedScore) {
                 winner = 'challenger'; 
             } else {
                 winner = 'draw';
             }
             
-            // Update challenge as completed
-            const updateQuery = `
-                UPDATE sudoku_challenge_invitations 
-                SET status = 'completed'
-                WHERE id = $1
-            `;
-            await pool.query(updateQuery, [challengeId]);
-            
             // Update group W/L records
-            await this.updateGroupWLRecords(challenge.group_id, challenge.challenger_id, challenge.challenged_id, winner);
+            await this.updateGroupWLRecords(
+                updatedChallenge.group_id, 
+                updatedChallenge.challenger_id, 
+                updatedChallenge.challenged_id, 
+                winner
+            );
             
             // Submit as regular game
-            await this.submitDailyGame(userId, challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes);
-            
-            // At the end of the challenged player completion logic:
+            await this.recordCompletedGame(userId, gameData.timeSeconds, challenge.difficulty, gameData.numberOfMistakes);
+
             // Delete the completed challenge
             const deleteQuery = `DELETE FROM sudoku_challenge_invitations WHERE id = $1`;
             await pool.query(deleteQuery, [challengeId]);
-
+            
             return { 
                 message: 'Challenge completed successfully', 
                 winner: winner,
-                challengerScore: challenge.challenger_score,
-                challengedScore: challengedScore 
+                challengerScore: updatedChallenge.challenger_score,
+                challengedScore: challengedScore,
+                challengerTime: updatedChallenge.challenger_time,
+                challengedTime: gameData.timeSeconds,
+                challengerMistakes: updatedChallenge.challenger_mistakes,
+                challengedMistakes: gameData.numberOfMistakes
             };
         }
         
         throw new Error('Invalid challenge completion attempt');
     }
-
+    
     /**
-     * Update group W/L records and delete completed challenge
-     */
+    * Update group W/L records and delete completed challenge
+    */
     static async updateGroupWLRecords(groupId, challengerId, challengedId, winner) {
         const client = await pool.connect();
         
@@ -1320,10 +1355,10 @@ class SudokuModel {
             client.release();
         }
     }
-
+    
     /**
-     * Complete challenger's game and make challenge available to challenged player
-     */
+    * Complete challenger's game and make challenge available to challenged player
+    */
     static async completeChallengerGameWithPuzzle(challengeId, gameData) {
         const challenge = await this.getChallengeById(challengeId);
         const score = this.calculateGameScore(challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes === 0);

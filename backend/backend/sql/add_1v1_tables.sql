@@ -38,3 +38,9 @@ ADD COLUMN IF NOT EXISTS challenge_type VARCHAR(10) DEFAULT 'offline';
 
 -- Update status enum to include new states
 -- The status can now be: pending, accepted, completed, rejected, challenger_completed
+
+-- Add missing columns for challenged player's data
+ALTER TABLE sudoku_challenge_invitations 
+ADD COLUMN IF NOT EXISTS challenged_time INT DEFAULT 0,
+ADD COLUMN IF NOT EXISTS challenged_score INT DEFAULT 0,
+ADD COLUMN IF NOT EXISTS challenged_mistakes INT DEFAULT 0;
