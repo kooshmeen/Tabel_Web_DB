@@ -64,5 +64,6 @@ router.post('/matches/:matchId/accept', SudokuController.acceptLiveMatch);
 router.post('/matches/:matchId/reject', SudokuController.rejectChallenge);
 router.get('/matches/:matchId', SudokuController.getLiveMatchDetails);
 router.post('/matches/:matchId/cancel', SudokuController.cancelLiveMatch);
+router.post('/matches/:matchId/complete', SudokuController.completeLiveMatch);
 
 module.exports = router;

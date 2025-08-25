@@ -62,6 +62,10 @@ ORDER BY created_at DESC
 LIMIT 1;
 
 
+
 -- delete 'winner' column from sudoku live matches
 ALTER TABLE sudoku_live_matches
 DROP COLUMN IF EXISTS winner;
+
+DELETE FROM sudoku_live_matches;
+DELETE FROM sudoku_challenge_invitations;
