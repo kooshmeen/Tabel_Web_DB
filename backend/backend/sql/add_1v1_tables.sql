@@ -55,3 +55,13 @@ ADD COLUMN IF NOT EXISTS challenged_mistakes INT DEFAULT 0,
 ADD COLUMN IF NOT EXISTS started_at TIMESTAMP DEFAULT NULL,
 ADD COLUMN IF NOT EXISTS challenger_finished_at TIMESTAMP DEFAULT NULL,
 ADD COLUMN IF NOT EXISTS challenged_finished_at TIMESTAMP DEFAULT NULL;
+
+-- select last row from sudoku_live_matches
+SELECT * FROM sudoku_live_matches
+ORDER BY created_at DESC
+LIMIT 1;
+
+
+-- delete 'winner' column from sudoku live matches
+ALTER TABLE sudoku_live_matches
+DROP COLUMN IF EXISTS winner;

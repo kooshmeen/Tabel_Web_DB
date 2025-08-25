@@ -62,5 +62,7 @@ router.get('/challenges/:challengeId/data', SudokuController.getChallengeData);
 router.get('/matches/pending', SudokuController.getPendingLiveMatches);
 router.post('/matches/:matchId/accept', SudokuController.acceptLiveMatch);
 router.post('/matches/:matchId/reject', SudokuController.rejectChallenge);
+router.get('/matches/:matchId', SudokuController.getLiveMatchDetails);
+router.post('/matches/:matchId/cancel', SudokuController.cancelLiveMatch);
 
 module.exports = router;

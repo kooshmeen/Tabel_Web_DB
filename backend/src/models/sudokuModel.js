@@ -1357,8 +1357,8 @@ class SudokuModel {
     }
     
     /**
-    * Complete challenger's game and make challenge available to challenged player
-    */
+     * Complete challenger's game and make challenge available to challenged player
+     */
     static async completeChallengerGameWithPuzzle(challengeId, gameData) {
         const challenge = await this.getChallengeById(challengeId);
         const score = this.calculateGameScore(challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes === 0);
@@ -1383,6 +1383,55 @@ class SudokuModel {
         
         return { message: 'Challenge completed and sent to challenged player' };
     }
-}
 
-module.exports = SudokuModel;
+    /**
+     * Get live match details by ID
+     * @param {number} matchId - The ID of the live match
+     * @returns {Promise<Object>} - The live match object
+     */
+    static async getLiveMatchById(matchId) {
+        const query = `
+            SELECT slm.*, 
+                   sp1.username as challenger_username,
+                   sp2.username as challenged_username,
+                   sg.group_name
+            FROM sudoku_live_matches slm
+            JOIN sudoku_players sp1 ON slm.challenger_id = sp1.id
+            JOIN sudoku_players sp2 ON slm.challenged_id = sp2.id
+            JOIN sudoku_groups sg ON slm.group_id = sg.id
+            WHERE slm.id = $1
+        `;
+        const values = [matchId];
+        
+        try {
+            const result = await pool.query(query, values);
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error retrieving live match details:', error);
+            throw new Error('Error retrieving live match details');
+        }
+    }
+
+    /**
+     * Cancel/delete a live match by ID
+     * @param {number} matchId - The ID of the live match to cancel
+     * @returns {Promise<void>}
+     */
+    static async cancelLiveMatch(matchId) {
+        const query = `
+            DELETE FROM sudoku_live_matches 
+            WHERE id = $1
+        `;
+        const values = [matchId];
+        
+        try {
+            const result = await pool.query(query, values);
+            if (result.rowCount === 0) {
+                throw new Error('Live match not found');
+            }
+        } catch (error) {
+            console.error('Error canceling live match:', error);
+            throw new Error('Error canceling live match');
+        }
+    }
+}module.exports = SudokuModel;

@@ -884,7 +884,7 @@ class SudokuController {
             res.status(500).json({ error: 'Error fetching live matches' });
         }
     }
-    
+
     /**
     * Accept a live match
     * POST /api/sudoku/matches/:matchId/accept
@@ -917,9 +917,9 @@ class SudokuController {
     }
     
     /**
-    * Get challenge data without accepting it
-    * GET /api/sudoku/challenges/:challengeId/data
-    */
+     * Get challenge data without accepting it
+     * GET /api/sudoku/challenges/:challengeId/data
+     */
     static async getChallengeData(req, res) {
         try {
             const userId = req.user.userId;
@@ -949,6 +949,68 @@ class SudokuController {
             res.status(500).json({ error: 'Error getting challenge data' });
         }
     }
-}
 
-module.exports = SudokuController;
+    /**
+     * Get live match details
+     * GET /api/sudoku/matches/:matchId
+     */
+    static async getLiveMatchDetails(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { matchId } = req.params;
+            
+            const match = await SudokuModel.getLiveMatchById(parseInt(matchId));
+            if (!match) {
+                return res.status(404).json({ error: 'Live match not found' });
+            }
+            
+            // Only challenger or challenged can view match details
+            if (match.challenger_id !== userId && match.challenged_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized to view this match' });
+            }
+            
+            res.json({
+                match
+            });
+        } catch (error) {
+            console.error('Get live match details error:', error);
+            res.status(500).json({ error: 'Error retrieving live match details' });
+        }
+    }
+
+    /**
+     * Cancel a live match
+     * POST /api/sudoku/matches/:matchId/cancel
+     */
+    static async cancelLiveMatch(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { matchId } = req.params;
+            
+            // First, check if the match exists and user has permission
+            const match = await SudokuModel.getLiveMatchById(parseInt(matchId));
+            if (!match) {
+                return res.status(404).json({ error: 'Live match not found' });
+            }
+            
+            // Only challenger or challenged can cancel the match
+            if (match.challenger_id !== userId && match.challenged_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized to cancel this match' });
+            }
+            
+            // Only allow cancellation if match is still pending or active
+            if (match.status === 'completed') {
+                return res.status(400).json({ error: 'Cannot cancel a completed match' });
+            }
+            
+            await SudokuModel.cancelLiveMatch(parseInt(matchId));
+            
+            res.json({
+                message: 'Live match cancelled successfully'
+            });
+        } catch (error) {
+            console.error('Cancel live match error:', error);
+            res.status(500).json({ error: 'Error cancelling live match' });
+        }
+    }
+}module.exports = SudokuController;
