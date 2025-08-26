@@ -884,7 +884,7 @@ class SudokuController {
             res.status(500).json({ error: 'Error fetching live matches' });
         }
     }
-
+    
     /**
     * Accept a live match
     * POST /api/sudoku/matches/:matchId/accept
@@ -917,9 +917,9 @@ class SudokuController {
     }
     
     /**
-     * Get challenge data without accepting it
-     * GET /api/sudoku/challenges/:challengeId/data
-     */
+    * Get challenge data without accepting it
+    * GET /api/sudoku/challenges/:challengeId/data
+    */
     static async getChallengeData(req, res) {
         try {
             const userId = req.user.userId;
@@ -949,11 +949,11 @@ class SudokuController {
             res.status(500).json({ error: 'Error getting challenge data' });
         }
     }
-
+    
     /**
-     * Get live match details
-     * GET /api/sudoku/matches/:matchId
-     */
+    * Get live match details
+    * GET /api/sudoku/matches/:matchId
+    */
     static async getLiveMatchDetails(req, res) {
         try {
             const userId = req.user.userId;
@@ -977,11 +977,11 @@ class SudokuController {
             res.status(500).json({ error: 'Error retrieving live match details' });
         }
     }
-
+    
     /**
-     * Cancel a live match
-     * POST /api/sudoku/matches/:matchId/cancel
-     */
+    * Cancel a live match
+    * POST /api/sudoku/matches/:matchId/cancel
+    */
     static async cancelLiveMatch(req, res) {
         try {
             const userId = req.user.userId;
@@ -1013,4 +1013,69 @@ class SudokuController {
             res.status(500).json({ error: 'Error cancelling live match' });
         }
     }
-}module.exports = SudokuController;
+    
+    /**
+    * Complete a live match
+    * POST /api/sudoku/matches/:matchId/complete
+    */
+    static async completeLiveMatch(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { matchId } = req.params;
+            const { timeSeconds, mistakes } = req.body;
+            
+            const match = await SudokuModel.getLiveMatchById(parseInt(matchId));
+            if (!match) {
+                return res.status(404).json({ error: 'Match not found' });
+            }
+            
+            // Verify user is part of this match
+            if (match.challenger_id !== userId && match.challenged_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized to complete this match' });
+            }
+            
+            const result = await SudokuModel.completeLiveMatch(
+                parseInt(matchId), 
+                userId, 
+                timeSeconds, 
+                mistakes
+            );
+            
+            res.json(result);
+        } catch (error) {
+            console.error('Complete live match error:', error);
+            res.status(500).json({ error: 'Error completing live match' });
+        }
+    }
+
+    /**
+    * Start a live match
+    * POST /api/sudoku/matches/:matchId/start
+    */
+    static async startLiveMatch(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { matchId } = req.params;
+
+            const match = await SudokuModel.getLiveMatchById(parseInt(matchId));
+            if (!match) {
+                return res.status(404).json({ error: 'Live match not found' });
+            }
+
+            // Only challenger or challenged can start the match
+            if (match.challenger_id !== userId && match.challenged_id !== userId) {
+                return res.status(403).json({ error: 'Not authorized to start this match' });
+            }
+
+            await SudokuModel.startLiveMatch(parseInt(matchId));
+
+            res.json({
+                message: 'Live match started successfully'
+            });
+        } catch (error) {
+            console.error('Start live match error:', error);
+            res.status(500).json({ error: 'Error starting live match' });
+        }
+    }
+}
+module.exports = SudokuController;

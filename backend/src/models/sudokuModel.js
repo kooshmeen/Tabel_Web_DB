@@ -1062,7 +1062,6 @@ class SudokuModel {
         
         return result.rows[0].id;
     }
-    
     /**
     * Create a live match for online challenges
     */
@@ -1104,15 +1103,15 @@ class SudokuModel {
     }
     
     /**
-    * Accept a live match
+    * Accept a live match - sets status to 'accepted' so challenger knows to generate puzzle
     */
     static async acceptLiveMatch(matchId) {
         const query = `
-            UPDATE sudoku_live_matches 
-            SET status = 'active' 
-            WHERE id = $1
-            RETURNING *
-        `;
+        UPDATE sudoku_live_matches 
+        SET status = 'accepted' 
+        WHERE id = $1
+        RETURNING *
+    `;
         
         const result = await pool.query(query, [matchId]);
         return result.rows[0];
@@ -1232,7 +1231,7 @@ class SudokuModel {
             
             // Also submit as regular game
             await this.recordCompletedGame(challenge.challenger_id, challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes);
-
+            
             return { 
                 message: 'Challenge game completed, waiting for opponent',
                 status: 'challenger_completed'
@@ -1286,7 +1285,7 @@ class SudokuModel {
             
             // Submit as regular game
             await this.recordCompletedGame(userId, gameData.timeSeconds, challenge.difficulty, gameData.numberOfMistakes);
-
+            
             // Delete the completed challenge
             const deleteQuery = `DELETE FROM sudoku_challenge_invitations WHERE id = $1`;
             await pool.query(deleteQuery, [challengeId]);
@@ -1357,8 +1356,8 @@ class SudokuModel {
     }
     
     /**
-     * Complete challenger's game and make challenge available to challenged player
-     */
+    * Complete challenger's game and make challenge available to challenged player
+    */
     static async completeChallengerGameWithPuzzle(challengeId, gameData) {
         const challenge = await this.getChallengeById(challengeId);
         const score = this.calculateGameScore(challenge.difficulty, gameData.timeSeconds, gameData.numberOfMistakes === 0);
@@ -1383,12 +1382,12 @@ class SudokuModel {
         
         return { message: 'Challenge completed and sent to challenged player' };
     }
-
+    
     /**
-     * Get live match details by ID
-     * @param {number} matchId - The ID of the live match
-     * @returns {Promise<Object>} - The live match object
-     */
+    * Get live match details by ID
+    * @param {number} matchId - The ID of the live match
+    * @returns {Promise<Object>} - The live match object
+    */
     static async getLiveMatchById(matchId) {
         const query = `
             SELECT slm.*, 
@@ -1411,12 +1410,12 @@ class SudokuModel {
             throw new Error('Error retrieving live match details');
         }
     }
-
+    
     /**
-     * Cancel/delete a live match by ID
-     * @param {number} matchId - The ID of the live match to cancel
-     * @returns {Promise<void>}
-     */
+    * Cancel/delete a live match by ID
+    * @param {number} matchId - The ID of the live match to cancel
+    * @returns {Promise<void>}
+    */
     static async cancelLiveMatch(matchId) {
         const query = `
             DELETE FROM sudoku_live_matches 
@@ -1434,4 +1433,131 @@ class SudokuModel {
             throw new Error('Error canceling live match');
         }
     }
-}module.exports = SudokuModel;
+    
+    /**
+    * Complete a live match (called when a player finishes)
+    */
+    static async completeLiveMatch(matchId, userId, timeSeconds, mistakes) {
+        const client = await pool.connect();
+        
+        try {
+            await client.query('BEGIN');
+            
+            // Get current match state
+            const matchQuery = `
+            SELECT * FROM sudoku_live_matches 
+            WHERE id = $1 AND status = 'active'
+        `;
+            const matchResult = await client.query(matchQuery, [matchId]);
+            
+            if (matchResult.rows.length === 0) {
+                throw new Error('Match not found or not active');
+            }
+            
+            const match = matchResult.rows[0];
+            const isChallenger = userId === match.challenger_id;
+            
+            // Calculate score
+            const score = this.calculateScore(timeSeconds, match.difficulty, mistakes);
+            
+            // Update the match with this player's completion
+            let updateQuery, updateParams;
+            
+            if (isChallenger) {
+                updateQuery = `
+                UPDATE sudoku_live_matches 
+                SET challenger_finished = true,
+                    challenger_time = $2,
+                    challenger_mistakes = $3,
+                    challenger_finished_at = NOW()
+                WHERE id = $1
+                RETURNING *
+            `;
+                updateParams = [matchId, timeSeconds, mistakes];
+            } else {
+                updateQuery = `
+                UPDATE sudoku_live_matches 
+                SET challenged_finished = true,
+                    challenged_time = $2,
+                    challenged_mistakes = $3,
+                    challenged_finished_at = NOW()
+                WHERE id = $1
+                RETURNING *
+            `;
+                updateParams = [matchId, timeSeconds, mistakes];
+            }
+            
+            const updateResult = await client.query(updateQuery, updateParams);
+            const updatedMatch = updateResult.rows[0];
+            
+            // Check if both players finished
+            if (updatedMatch.challenger_finished && updatedMatch.challenged_finished) {
+                // Both finished - calculate winner and final results
+                const challengerScore = this.calculateScore(
+                    updatedMatch.challenger_time, 
+                    updatedMatch.difficulty, 
+                    updatedMatch.challenger_mistakes
+                );
+                const challengedScore = this.calculateScore(
+                    updatedMatch.challenged_time, 
+                    updatedMatch.difficulty, 
+                    updatedMatch.challenged_mistakes
+                );
+                
+                let winner = 'draw';
+                if (challengerScore > challengedScore) {
+                    winner = 'challenger';
+                } else if (challengedScore > challengerScore) {
+                    winner = 'challenged';
+                }
+                
+                // Update match status to completed with results
+                await client.query(`
+                UPDATE sudoku_live_matches 
+                SET status = 'results_ready'
+                WHERE id = $1
+            `, [matchId]);
+                    
+                    await client.query('COMMIT');
+                    
+                    return {
+                        status: 'match_completed',
+                        winner: winner,
+                        challengerTime: updatedMatch.challenger_time,
+                        challengedTime: updatedMatch.challenged_time,
+                        challengerScore: challengerScore,
+                        challengedScore: challengedScore
+                    };
+                } else {
+                    // Only one player finished
+                    await client.query('COMMIT');
+                    
+                    return {
+                        status: 'waiting_for_opponent'
+                    };
+                }
+                
+            } catch (error) {
+                await client.query('ROLLBACK');
+                throw error;
+            } finally {
+                client.release();
+            }
+    }
+
+    /**
+    * Update live match with puzzle data and set status to 'active'
+    */
+    static async startLiveMatch(matchId, puzzleData) {
+        const query = `
+            UPDATE sudoku_live_matches 
+            SET puzzle_data = $1, status = 'active', started_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            RETURNING *
+        `;
+        
+        const result = await pool.query(query, [JSON.stringify(puzzleData), matchId]);
+        return result.rows[0];
+    }
+}
+module.exports = SudokuModel;
