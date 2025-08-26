@@ -1040,7 +1040,7 @@ class SudokuController {
                 timeSeconds, 
                 mistakes
             );
-            
+            console.log('-------result-------', result);
             res.json(result);
         } catch (error) {
             console.error('Complete live match error:', error);

@@ -1446,7 +1446,7 @@ class SudokuModel {
             // Get current match state
             const matchQuery = `
             SELECT * FROM sudoku_live_matches 
-            WHERE id = $1 AND status = 'active'
+            WHERE id = $1 AND (status = 'active' OR status = 'results_ready')
         `;
             const matchResult = await client.query(matchQuery, [matchId]);
             
@@ -1458,8 +1458,8 @@ class SudokuModel {
             const isChallenger = userId === match.challenger_id;
             
             // Calculate score
-            const score = this.calculateScore(timeSeconds, match.difficulty, mistakes);
-            
+            const score = this.calculateGameScore(match.difficulty, timeSeconds, mistakes);
+
             // Update the match with this player's completion
             let updateQuery, updateParams;
             
@@ -1493,14 +1493,14 @@ class SudokuModel {
             // Check if both players finished
             if (updatedMatch.challenger_finished && updatedMatch.challenged_finished) {
                 // Both finished - calculate winner and final results
-                const challengerScore = this.calculateScore(
-                    updatedMatch.challenger_time, 
-                    updatedMatch.difficulty, 
+                const challengerScore = this.calculateGameScore(
+                    updatedMatch.difficulty,
+                    updatedMatch.challenger_time,
                     updatedMatch.challenger_mistakes
                 );
-                const challengedScore = this.calculateScore(
+                const challengedScore = this.calculateGameScore(
+                    updatedMatch.difficulty,
                     updatedMatch.challenged_time, 
-                    updatedMatch.difficulty, 
                     updatedMatch.challenged_mistakes
                 );
                 
