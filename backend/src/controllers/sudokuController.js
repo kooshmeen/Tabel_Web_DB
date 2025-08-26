@@ -1052,10 +1052,15 @@ class SudokuController {
     * Start a live match
     * POST /api/sudoku/matches/:matchId/start
     */
+    /**
+     * Start a live match
+     * POST /api/sudoku/matches/:matchId/start
+     */
     static async startLiveMatch(req, res) {
         try {
             const userId = req.user.userId;
             const { matchId } = req.params;
+            const { puzzle, solution, difficulty } = req.body; // Extract puzzle data
 
             const match = await SudokuModel.getLiveMatchById(parseInt(matchId));
             if (!match) {
@@ -1067,7 +1072,15 @@ class SudokuController {
                 return res.status(403).json({ error: 'Not authorized to start this match' });
             }
 
-            await SudokuModel.startLiveMatch(parseInt(matchId));
+            // Create puzzle data object
+            const puzzleData = {
+                puzzle,
+                solution,
+                difficulty
+            };
+
+            // Pass puzzle data to the model
+            await SudokuModel.startLiveMatch(parseInt(matchId), puzzleData);
 
             res.json({
                 message: 'Live match started successfully'
