@@ -1309,6 +1309,7 @@ class SudokuModel {
     * Update group W/L records and delete completed challenge
     */
     static async updateGroupWLRecords(groupId, challengerId, challengedId, winner) {
+        console.log(`Updating group W/L records for group: ${groupId}, challenger: ${challengerId}, challenged: ${challengedId}, winner: ${winner}`);
         const client = await pool.connect();
         
         try {
@@ -1437,7 +1438,7 @@ class SudokuModel {
     /**
     * Complete a live match (called when a player finishes)
     */
-    static async completeLiveMatch(matchId, userId, timeSeconds, mistakes) {
+    static async completeLiveMatch(matchId, userId, timeSeconds, mistakes, update) {
         const client = await pool.connect();
         
         try {
@@ -1516,19 +1517,27 @@ class SudokuModel {
                 UPDATE sudoku_live_matches 
                 SET status = 'results_ready'
                 WHERE id = $1
-            `, [matchId]);
+                `, [matchId]);
                     
-                    await client.query('COMMIT');
-                    
-                    return {
-                        status: 'match_completed',
-                        winner: winner,
-                        challengerTime: updatedMatch.challenger_time,
-                        challengedTime: updatedMatch.challenged_time,
-                        challengerScore: challengerScore,
-                        challengedScore: challengedScore
-                    };
-                } else {
+                await client.query('COMMIT');
+
+                //debug updatedMatch details (currently, fields below are undefined)
+                console.log(updatedMatch);
+
+                if (update === true) {
+                    await this.updateGroupWLRecords(updatedMatch.group_id, updatedMatch.challenger_id,
+                        updatedMatch.challenged_id, winner);
+                }
+
+                return {
+                    status: 'match_completed',
+                    winner: winner,
+                    challengerTime: updatedMatch.challenger_time,
+                    challengedTime: updatedMatch.challenged_time,
+                    challengerScore: challengerScore,
+                    challengedScore: challengedScore
+                };
+            } else {
                     // Only one player finished
                     await client.query('COMMIT');
                     

@@ -1022,8 +1022,8 @@ class SudokuController {
         try {
             const userId = req.user.userId;
             const { matchId } = req.params;
-            const { timeSeconds, mistakes } = req.body;
-            
+            const { timeSeconds, mistakes, update } = req.body;
+
             const match = await SudokuModel.getLiveMatchById(parseInt(matchId));
             if (!match) {
                 return res.status(404).json({ error: 'Match not found' });
@@ -1038,7 +1038,8 @@ class SudokuController {
                 parseInt(matchId), 
                 userId, 
                 timeSeconds, 
-                mistakes
+                mistakes,
+                update
             );
             console.log('-------result-------', result);
             res.json(result);
